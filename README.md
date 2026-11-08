@@ -27,7 +27,7 @@ Scripts/build-app.sh                        # dist/Notch Agents.app + .dmg (ad-h
 For a signed, notarized release set `SIGN_IDENTITY="Developer ID Application: …"` and `NOTARY_PROFILE=<notarytool keychain profile>`.
 
 ## Landing page
-`docs/index.html` is a single self-contained page. Publish it with GitHub Pages (Settings → Pages → Deploy from branch → `/docs`). It is served at https://adii9.github.io/notch-agents.
+Live at **https://notch-agents.vercel.app**. `docs/index.html` is a single self-contained page; Vercel deploys it from `/docs` on every push to `main`.
 
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md). MIT licensed.
