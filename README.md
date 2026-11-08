@@ -27,7 +27,7 @@ Scripts/build-app.sh                        # dist/Notch Agents.app + .dmg (ad-h
 For a signed, notarized release set `SIGN_IDENTITY="Developer ID Application: …"` and `NOTARY_PROFILE=<notarytool keychain profile>`.
 
 ## Landing page
-`docs/index.html` is a single self-contained page. Publish it with GitHub Pages (Settings → Pages → Deploy from branch → `/docs`). Replace `OWNER/notch-agents` in it with the real repo path first.
+`docs/index.html` is a single self-contained page. Publish it with GitHub Pages (Settings → Pages → Deploy from branch → `/docs`). It is served at https://adii9.github.io/notch-agents.
 
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md). MIT licensed.
