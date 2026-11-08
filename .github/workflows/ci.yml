@@ -1,0 +1,37 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: swift build
+
+      - name: Check shell scripts
+        run: for f in Scripts/*.sh; do bash -n "$f"; done
+
+      - name: Hook smoke test
+        run: Scripts/test-hook.sh
+
+      - name: Build app bundle + DMG
+        run: VERSION="0.0.0-ci.${GITHUB_SHA::7}" Scripts/build-app.sh
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: NotchAgents-${{ github.sha }}
+          path: dist/*.dmg
+          retention-days: 7

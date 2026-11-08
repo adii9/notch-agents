@@ -9,15 +9,63 @@ permissions:
 jobs:
   dmg:
     runs-on: macos-latest
+    env:
+      VERSION_TAG: ${{ github.ref_name }}
+      # Signing + notarization switch on automatically once these repo secrets exist:
+      #   MACOS_CERT_P12       base64 of the "Developer ID Application" certificate (.p12)
+      #   MACOS_CERT_PASSWORD  password of that .p12
+      #   APPLE_ID             Apple ID email used for notarization
+      #   APPLE_TEAM_ID        10-character team ID
+      #   APPLE_APP_PASSWORD   app-specific password for that Apple ID
+      HAS_SIGNING: ${{ secrets.MACOS_CERT_P12 != '' }}
     steps:
       - uses: actions/checkout@v4
-      - name: Build app + DMG
+
+      - name: Hook smoke test
+        run: Scripts/test-hook.sh
+
+      - name: Set up Developer ID signing
+        if: env.HAS_SIGNING == 'true'
         env:
-          VERSION_TAG: ${{ github.ref_name }}
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
-          VERSION="${VERSION_TAG#v}" Scripts/build-app.sh
+          KC="$RUNNER_TEMP/signing.keychain-db"
+          KP="$(uuidgen)"
+          security create-keychain -p "$KP" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KP" "$KC"
+          printf '%s' "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KP" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          security default-keychain -s "$KC"
+          ID="$(security find-identity -v -p codesigning "$KC" | grep 'Developer ID Application' | head -1 | sed -E 's/.*"(.*)"/\1/')"
+          [ -n "$ID" ] || { echo "No Developer ID Application identity in the certificate"; exit 1; }
+          xcrun notarytool store-credentials notary --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD"
+          echo "SIGN_IDENTITY=$ID" >> "$GITHUB_ENV"
+          echo "NOTARY_PROFILE=notary" >> "$GITHUB_ENV"
+          echo "KEYCHAIN_PATH=$KC" >> "$GITHUB_ENV"
+
+      - name: Build app + DMG
+        run: VERSION="${VERSION_TAG#v}" Scripts/build-app.sh
+
+      - name: Checksums
+        run: cd dist && shasum -a 256 *.dmg > SHA256SUMS.txt && cat SHA256SUMS.txt
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.dmg
+          files: |
+            dist/*.dmg
+            dist/SHA256SUMS.txt
           generate_release_notes: true
+          body: ${{ env.HAS_SIGNING == 'true' && 'Signed with Developer ID and notarized by Apple.' || 'This build is not notarized yet. On first launch, right-click Notch Agents in Applications and choose Open.' }}
+
+      - name: Remove signing keychain
+        if: always() && env.KEYCHAIN_PATH != ''
+        run: security delete-keychain "$KEYCHAIN_PATH"
