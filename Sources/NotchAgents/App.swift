@@ -14,7 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
 
         let root = RootView(store: store, hover: hover)
-        let host = NSHostingView(rootView: root)
+        let host = FirstClickHostingView(rootView: root)
         host.frame = NSRect(x: 0, y: 0, width: IslandLayout.panelWidth, height: IslandLayout.panelHeight)
 
         panel = NSPanel(contentRect: host.frame,
@@ -26,7 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.hasShadow = false
         panel.level = .statusBar
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
-        panel.ignoresMouseEvents = false
+        panel.ignoresMouseEvents = true  // click-through until the pointer is over the island
         positionPanel()
         panel.orderFrontRegardless()
 
@@ -35,8 +35,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             MainActor.assumeIsolated { self?.positionPanel() }
         }
 
-        server = EventServer { [weak self] ev in
-            Task { @MainActor in self?.store.handle(ev) }
+        server = EventServer { [weak self] ev, responder in
+            Task { @MainActor in
+                guard let self else { responder?.finish(nil); return }
+                self.store.handle(ev, responder: responder)
+            }
         }
         do { try server.start() } catch {
             NSLog("NotchAgents: socket failed or another instance is running: \(error)")
@@ -44,6 +47,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         menu = MenuController()
+
+        // The panel is much bigger than the island and floats above other windows, so it must
+        // only take clicks where the island actually is; everywhere else they go to what's below.
+        let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.updateClickThrough() }
+        }
+        RunLoop.main.add(timer, forMode: .common)  // keep running while menus and dialogs are open
+        mouseTimer = timer
+    }
+
+    var mouseTimer: Timer?
+
+    private func updateClickThrough() {
+        let size = hover.islandSize
+        let f = panel.frame
+        let island = NSRect(x: f.midX - size.width / 2, y: f.maxY - size.height,
+                            width: size.width, height: size.height).insetBy(dx: -2, dy: -2)
+        let inside = store.isVisible && size != .zero && island.contains(NSEvent.mouseLocation)
+        if panel.ignoresMouseEvents == inside { panel.ignoresMouseEvents = !inside }
+        // While click-through, SwiftUI gets no hover-exit event, so collapse here.
+        if !inside && hover.hovering { hover.hovering = false }
     }
 
     var menu: MenuController?
@@ -64,7 +88,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @MainActor @Observable
-final class HoverState { var hovering = false }
+final class HoverState {
+    var hovering = false
+    /// The island's current on-screen size, used to decide where the panel accepts clicks.
+    var islandSize: CGSize = .zero
+}
 
 struct RootView: View {
     let store: AgentStore
@@ -73,8 +101,15 @@ struct RootView: View {
     var body: some View {
         VStack {
             if store.isVisible {
-                IslandView(store: store, expanded: hover.hovering)
+                // A pending permission request keeps the island open until it's answered.
+                IslandView(store: store, expanded: hover.hovering || !store.pending.isEmpty)
                     .onHover { hover.hovering = $0 }
+                    .background(GeometryReader { g in
+                        Color.clear
+                            .onAppear { hover.islandSize = g.size }
+                            .onChange(of: g.size) { _, new in hover.islandSize = new }
+                    })
+                    .onDisappear { hover.islandSize = .zero }
                     .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .top)))
             }
             Spacer(minLength: 0)
@@ -82,6 +117,11 @@ struct RootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(.easeInOut(duration: 0.25), value: store.isVisible)
     }
+}
+
+/// The panel never becomes key, so the first click must go straight to the buttons.
+final class FirstClickHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 @main

@@ -6,9 +6,9 @@ final class EventServer: @unchecked Sendable {
     static let path = dir + "/sock"
 
     private var fd: Int32 = -1
-    private let onEvent: @Sendable (HookEvent) -> Void
+    private let onEvent: @Sendable (HookEvent, Responder?) -> Void
 
-    init(onEvent: @escaping @Sendable (HookEvent) -> Void) { self.onEvent = onEvent }
+    init(onEvent: @escaping @Sendable (HookEvent, Responder?) -> Void) { self.onEvent = onEvent }
 
     /// True if a live process already accepts connections on the socket.
     static func isAnotherInstanceListening() -> Bool {
@@ -61,18 +61,55 @@ final class EventServer: @unchecked Sendable {
                 let client = accept(listenFd, nil, nil)
                 if client < 0 { return }
                 DispatchQueue.global().async {
+                    // Protocol: the hook sends one JSON line. Normal events are closed right away;
+                    // a PermissionRequest stays open until the app writes a decision line (or gives up).
                     var data = Data()
                     var buf = [UInt8](repeating: 0, count: 4096)
-                    while true {
+                    while !data.contains(0x0A) {
                         let n = read(client, &buf, buf.count)
                         if n <= 0 { break }
                         data.append(buf, count: n)
                         if data.count > 1_000_000 { break }
                     }
-                    close(client)
-                    if let ev = try? JSONDecoder().decode(HookEvent.self, from: data) { onEvent(ev) }
+                    let line = data.split(separator: 0x0A, maxSplits: 1).first ?? data[...]
+                    guard let ev = try? JSONDecoder().decode(HookEvent.self, from: Data(line)) else {
+                        close(client); return
+                    }
+                    if ev.hook_event_name == "PermissionRequest" {
+                        onEvent(ev, Responder(fd: client))
+                    } else {
+                        close(client)
+                        onEvent(ev, nil)
+                    }
                 }
             }
         }
     }
+}
+
+/// Holds a hook's connection open until the app answers. Only the first `finish` counts.
+final class Responder: @unchecked Sendable {
+    private let fd: Int32
+    private let lock = NSLock()
+    private var done = false
+
+    init(fd: Int32) {
+        self.fd = fd
+        var one: Int32 = 1  // writing to a hook that already exited must not kill the app
+        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
+    }
+
+    /// Writes `line` (if any) and closes. `nil` means "no decision": Claude shows its own prompt.
+    func finish(_ line: String?) {
+        lock.lock(); defer { lock.unlock() }
+        guard !done else { return }
+        done = true
+        if let line {
+            let bytes = Array((line + "\n").utf8)
+            _ = bytes.withUnsafeBytes { write(fd, $0.baseAddress, $0.count) }
+        }
+        close(fd)
+    }
+
+    deinit { finish(nil) }
 }

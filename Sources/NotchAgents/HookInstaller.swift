@@ -11,14 +11,25 @@ enum HookInstaller {
     private static let legacyHook = legacyDir + "/hook.sh"
 
     static let events = ["SessionStart", "PreToolUse", "PostToolUse", "SubagentStart",
-                         "SubagentStop", "Stop", "Notification"]
+                         "SubagentStop", "Stop", "Notification", "PermissionRequest"]
 
-    /// Forwards the hook payload to the app's socket; never blocks or fails Claude.
+    /// Seconds Claude Code waits for the PermissionRequest hook. Above the script's nc -w (30)
+    /// and the app's own timeout (25), so the app always gives up first and Claude falls back cleanly.
+    static let permissionTimeout = 40
+
+    /// Forwards the hook payload to the app's socket and never fails Claude. Normal events return
+    /// immediately; a permission request waits (up to 30s) for the island's answer and prints it.
+    /// No answer prints nothing, which leaves Claude's own permission prompt in place.
     static let script = """
     #!/bin/bash
     SOCK="$HOME/.notch-agents/sock"
     [ -S "$SOCK" ] || exit 0
-    /usr/bin/nc -U -w 1 "$SOCK" 2>/dev/null
+    P="$(cat)"
+    if printf '%s' "$P" | /usr/bin/grep -q '"hook_event_name" *: *"PermissionRequest"'; then
+      printf '%s\\n' "$P" | /usr/bin/nc -U -w 30 "$SOCK" 2>/dev/null
+    else
+      printf '%s\\n' "$P" | /usr/bin/nc -U -w 1 "$SOCK" >/dev/null 2>&1
+    fi
     exit 0
 
     """
@@ -71,7 +82,11 @@ enum HookInstaller {
         for ev in events {
             var groups = hooks[ev] as? [[String: Any]] ?? []
             groups.removeAll { contains($0, hookPath) || contains($0, legacyHook) }
-            if add { groups.append(["hooks": [["type": "command", "command": hookPath]]]) }
+            if add {
+                var hook: [String: Any] = ["type": "command", "command": hookPath]
+                if ev == "PermissionRequest" { hook["timeout"] = permissionTimeout }
+                groups.append(["hooks": [hook]])
+            }
             if groups.isEmpty { hooks.removeValue(forKey: ev) } else { hooks[ev] = groups }
         }
         if hooks.isEmpty { settings.removeValue(forKey: "hooks") } else { settings["hooks"] = hooks }

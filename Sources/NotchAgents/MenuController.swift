@@ -45,7 +45,7 @@ final class MenuController: NSObject, NSMenuDelegate {
         alert.informativeText = "This adds Notch Agents entries to ~/.claude/settings.json so Claude Code can report activity to the app. A timestamped backup is made first. Restart running Claude Code sessions afterwards."
         alert.addButton(withTitle: "Install")
         alert.addButton(withTitle: "Cancel")
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         run { try HookInstaller.install() }
     }
@@ -64,7 +64,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     private func run(_ body: () throws -> Void) {
         do { try body() } catch {
             let a = NSAlert(error: error)
-            NSApp.activate(ignoringOtherApps: true)
+            NSApp.activate()
             a.runModal()
         }
     }

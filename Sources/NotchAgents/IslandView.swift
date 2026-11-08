@@ -36,6 +36,12 @@ struct IslandView: View {
     private var expandedBody: some View {
         VStack(alignment: .leading, spacing: 8) {
             Color.clear.frame(height: IslandLayout.notchHeight)
+            // Approvals first: they block Claude. Questions are only a heads-up.
+            if let prompt = store.pending.first(where: { !$0.isQuestion }) ?? store.pending.first {
+                ApprovalCard(prompt: prompt, more: store.pending.count - 1,
+                             decide: { allow in store.decide(prompt.id, allow: allow) },
+                             dismiss: { store.dismiss(prompt.id) })
+            }
             ForEach(store.agents) { agent in
                 HStack(spacing: 10) {
                     Circle().fill(agent.state == .running ? Color.orange : Color.green).frame(width: 8, height: 8)
@@ -61,6 +67,77 @@ struct IslandView: View {
     }
 }
 
+/// Allow / Deny for a pending Claude Code permission request.
+struct ApprovalCard: View {
+    let prompt: PermissionPrompt
+    let more: Int
+    let decide: (Bool) -> Void
+    let dismiss: () -> Void
+    /// Buttons stay inert briefly so a click already in flight can't approve a card that just popped up.
+    static let armDelay: TimeInterval = 0.7
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: prompt.isQuestion ? "questionmark.bubble.fill" : "hand.raised.fill")
+                    .foregroundStyle(prompt.isQuestion ? Color.blue : Color.orange)
+                Text(prompt.isQuestion ? "Claude has a question" : "Permission needed")
+                    .font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
+                Spacer()
+                if !prompt.isQuestion {
+                    TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                        let left = max(0, Int(AgentStore.promptTimeout - ctx.date.timeIntervalSince(prompt.createdAt)))
+                        Text("\(left)s").font(.system(size: 11, design: .monospaced)).foregroundStyle(.white.opacity(0.5))
+                    }
+                }
+            }
+            Text(prompt.isQuestion ? prompt.title : "\(prompt.title) · \(prompt.tool)")
+                .font(.system(size: 11)).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
+            Text(prompt.detail)
+                .font(.system(size: 11, design: .monospaced)).foregroundStyle(.white)
+                .lineLimit(prompt.isQuestion ? 12 : 6).frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8).background(Color.white.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            if prompt.isQuestion {
+                HStack {
+                    Text("Answer it in the terminal").font(.system(size: 10)).foregroundStyle(.white.opacity(0.45))
+                    Spacer()
+                    Button("Dismiss", action: dismiss).buttonStyle(IslandButtonStyle(primary: false)).frame(width: 90)
+                }
+            } else {
+                TimelineView(.periodic(from: .now, by: 0.25)) { ctx in
+                    let armed = ctx.date.timeIntervalSince(prompt.createdAt) >= Self.armDelay
+                    HStack(spacing: 8) {
+                        Button("Deny") { decide(false) }.buttonStyle(IslandButtonStyle(primary: false))
+                        Button("Allow") { decide(true) }.buttonStyle(IslandButtonStyle(primary: true))
+                    }
+                    .disabled(!armed).opacity(armed ? 1 : 0.5)
+                }
+                Text(more > 0 ? "+\(more) more waiting · no answer = ask in terminal"
+                              : "No answer = Claude asks in the terminal")
+                    .font(.system(size: 10)).foregroundStyle(.white.opacity(0.45))
+            }
+        }
+        .padding(12)
+        .background(Color.white.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+struct IslandButtonStyle: ButtonStyle {
+    let primary: Bool
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(primary ? Color.black : Color.white)
+            .frame(maxWidth: .infinity, minHeight: 28)
+            .background(primary ? Color.white : Color.white.opacity(0.14))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .contentShape(Rectangle())
+    }
+}
+
 enum IslandLayout {
     /// Set at launch from the screen's safe-area; 0 on displays without a notch.
     nonisolated(unsafe) static var notchWidth: CGFloat = 0
@@ -69,5 +146,5 @@ enum IslandLayout {
     static var collapsedHeight: CGFloat { max(notchHeight, 34) }
     static let expandedWidth: CGFloat = 340
     static let panelWidth: CGFloat = 360
-    static let panelHeight: CGFloat = 320
+    static let panelHeight: CGFloat = 480
 }

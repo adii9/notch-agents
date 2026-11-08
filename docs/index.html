@@ -167,7 +167,19 @@ nav .acts{display:flex;gap:8px}
 
 /* bento */
 .bento{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
-.s2{grid-column:span 2}.s3{grid-column:span 3}.s4{grid-column:span 4}
+.s2{grid-column:span 2}.s3{grid-column:span 3}.s4{grid-column:span 4}.s6{grid-column:span 6}
+.perm{display:grid;grid-template-columns:1fr 1.05fr;gap:28px;align-items:center}
+.perm .viz{margin:0}
+.acard{background:#000;border-radius:18px;padding:14px;max-width:380px;margin:0 auto;box-shadow:0 20px 40px -20px rgba(0,0,0,.8)}
+.acard .in{background:rgba(255,255,255,.06);border-radius:12px;padding:12px;display:grid;gap:8px}
+.acard .hd{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:650}
+.acard .hd span:last-child{margin-left:auto;font:11px ui-monospace,Menlo,monospace;color:rgba(255,255,255,.5)}
+.acard .sub{font-size:11px;color:rgba(255,255,255,.6)}
+.acard .cmd{font:11.5px ui-monospace,Menlo,monospace;background:rgba(255,255,255,.08);border-radius:8px;padding:8px}
+.acard .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.acard .btns b{display:grid;place-items:center;height:28px;border-radius:8px;font-size:12px;background:rgba(255,255,255,.14)}
+.acard .btns b+b{background:#fff;color:#000}
+.acard .ft{font-size:10px;color:rgba(255,255,255,.45)}
 .viz{margin:-6px -6px 22px;border-radius:14px;background:#08080c;border:1px solid var(--line);padding:16px;position:relative;overflow:hidden}
 .mini{background:#000;border-radius:16px;padding:6px 14px;max-width:390px;margin:0 auto;box-shadow:0 20px 40px -20px rgba(0,0,0,.8)}
 .chipset{display:flex;flex-wrap:wrap;gap:8px}
@@ -247,7 +259,8 @@ footer .fine{margin-top:48px;padding-top:24px;border-top:1px solid var(--line);f
   nav ul,nav .acts .gh{display:none}
   section{padding:84px 0}
   .bento,.small,.cmp,.road,.inst,.steps{grid-template-columns:minmax(0,1fr)}
-  .s2,.s3,.s4{grid-column:auto}
+  .s2,.s3,.s4,.s6{grid-column:auto}
+  .perm{grid-template-columns:minmax(0,1fr)}
   .small{grid-template-columns:1fr 1fr}
   .steps::before{display:none}
   .stats{grid-template-columns:1fr 1fr}
@@ -308,7 +321,7 @@ footer .fine{margin-top:48px;padding-top:24px;border-top:1px solid var(--line);f
   <div class="aurora"></div>
   <div class="wrap">
     <img class="appicon rv" src="icon.png" alt="Notch Agents app icon">
-    <a class="pill-link rv" href="https://github.com/adii9/notch-agents/releases"><b>NEW</b>Version 0.1.0 is out <span class="arr">→</span></a>
+    <a class="pill-link rv" href="https://github.com/adii9/notch-agents/releases"><b>NEW</b>v0.2.0: approve permissions from the notch <span class="arr">→</span></a>
     <h1 class="rv">Every agent,<br><em>right at your notch.</em></h1>
     <p class="lead rv">Notch Agents shows every running Claude Code chat and sub-agent live at the top of your Mac: which one is working, on what, and for how long.</p>
     <div class="cta rv">
@@ -346,7 +359,7 @@ footer .fine{margin-top:48px;padding-top:24px;border-top:1px solid var(--line);f
 
   <div class="wrap">
     <div class="stats rv">
-      <div><b>7</b><span>Claude Code hooks</span></div>
+      <div><b>8</b><span>Claude Code hooks</span></div>
       <div><b>0</b><span>network requests</span></div>
       <div><b>&lt;1 MB</b><span>universal app</span></div>
       <div><b>MIT</b><span>open source</span></div>
@@ -362,8 +375,8 @@ footer .fine{margin-top:48px;padding-top:24px;border-top:1px solid var(--line);f
       <p class="lead">Claude Code already reports what it's doing. Notch Agents listens on your Mac and draws it. Nothing leaves your machine.</p>
     </div>
     <div class="steps">
-      <div class="step rv"><div class="num">01</div><h3>Claude Code fires a hook</h3><p>Session start, tool use, sub-agent start and stop, finish and notifications.</p></div>
-      <div class="step rv"><div class="num">02</div><h3>A tiny script forwards it</h3><p>The event JSON goes into a private local socket. The script exits instantly, even if the app isn't running.</p></div>
+      <div class="step rv"><div class="num">01</div><h3>Claude Code fires a hook</h3><p>Session start, tool use, sub-agent start and stop, permission requests, finish and notifications.</p></div>
+      <div class="step rv"><div class="num">02</div><h3>A tiny script forwards it</h3><p>The event JSON goes into a private local socket and the script exits instantly. Only a permission request waits, for your answer at the notch.</p></div>
       <div class="step rv"><div class="num">03</div><h3>The island updates</h3><p>Events are grouped per chat and sub-agent, animated at the notch, then tidied away.</p></div>
     </div>
     <div class="payload rv">
@@ -388,6 +401,23 @@ footer .fine{margin-top:48px;padding-top:24px;border-top:1px solid var(--line);f
     </div>
 
     <div class="bento">
+      <div class="card s6 rv perm">
+        <div>
+          <span class="badge live" style="display:inline-block;margin-bottom:16px">NEW IN 0.2.0</span>
+          <h3 style="font-size:26px">Approve permissions from the notch</h3>
+          <p>When Claude needs your OK, the island drops down with the exact command or file, plus Allow and Deny. No digging for the right terminal. Questions from Claude show up too, so you know to go answer them.</p>
+          <p style="margin-top:12px;font-size:14px;color:var(--dim)">Don't answer within 25 seconds and Claude simply asks in the terminal as usual. If the app isn't running, nothing changes.</p>
+        </div>
+        <div class="viz">
+          <div class="acard"><div class="in">
+            <div class="hd"><span style="color:var(--accent)">✋</span><span>Permission needed</span><span>21s</span></div>
+            <div class="sub">api-refactor · Bash</div>
+            <div class="cmd">swift test --parallel</div>
+            <div class="btns"><b>Deny</b><b>Allow</b></div>
+            <div class="ft">No answer = Claude asks in the terminal</div>
+          </div></div>
+        </div>
+      </div>
       <div class="card s4 rv">
         <div class="viz">
           <div class="mini">
@@ -504,6 +534,7 @@ footer .fine{margin-top:48px;padding-top:24px;border-top:1px solid var(--line);f
           <li>Per-chat rows &amp; sub-agents<span>grouped by session</span></li>
           <li>Notch pill, hover to expand<span>auto-hides when idle</span></li>
           <li>Live tool &amp; timer per agent<span>file names included</span></li>
+          <li>Approve permissions from the notch<span>new in 0.2.0</span></li>
           <li>In-app hook install / remove<span>with settings backup</span></li>
           <li>Launch at login<span>menu bar toggle</span></li>
         </ul>
@@ -511,7 +542,6 @@ footer .fine{margin-top:48px;padding-top:24px;border-top:1px solid var(--line);f
       <div class="card rv">
         <h3><span class="badge next">PLANNED</span></h3>
         <ul>
-          <li>Permission prompts on the island<span>approve from the notch</span></li>
           <li>Click to jump to a session<span>focus its terminal</span></li>
           <li>Sounds &amp; completion chime<span>optional</span></li>
           <li>Settings window<span>display, delay, theme</span></li>
@@ -556,8 +586,9 @@ cd notch-agents &amp;&amp; Scripts/build-app.sh</div>
     <div class="head rv"><div class="eyebrow">FAQ</div><h2>Questions, <em>answered.</em></h2></div>
     <div class="faq rv">
       <details><summary>Does it work on a Mac without a notch?</summary><p>Yes. The pill sits at the top-center of the screen. It's tuned for notched MacBooks but doesn't need one.</p></details>
-      <details><summary>What exactly does "Install hooks" change?</summary><p>It adds seven entries to <span class="mono">~/.claude/settings.json</span>, each pointing at <span class="mono">~/.notch-agents/hook.sh</span>. It saves a timestamped backup first and never touches entries it didn't create. "Remove Claude Code hooks" reverses it.</p></details>
-      <details><summary>Can it slow down or break Claude Code?</summary><p>No. The hook script hands the event to a local socket and exits with status 0 immediately, even if the app isn't running.</p></details>
+      <details><summary>What exactly does "Install hooks" change?</summary><p>It adds eight entries to <span class="mono">~/.claude/settings.json</span>, each pointing at <span class="mono">~/.notch-agents/hook.sh</span>. It saves a timestamped backup first and never touches entries it didn't create. "Remove Claude Code hooks" reverses it.</p></details>
+      <details><summary>Can it slow down or break Claude Code?</summary><p>No. For normal events the hook script hands the event to a local socket and exits with status 0 immediately, even if the app isn't running. The one exception is a permission request: it waits up to 25 seconds for your answer at the notch, then Claude asks in the terminal as usual.</p></details>
+      <details><summary>How do permission prompts on the island work?</summary><p>When Claude Code needs approval, the island shows the exact command or file with Allow and Deny. Your answer goes straight back to Claude. If you don't answer within 25 seconds, or answer in the terminal instead, the card steps aside. Questions Claude asks you are shown as a heads-up and answered in the terminal.</p></details>
       <details><summary>Does it send my code or prompts anywhere?</summary><p>No. The app has no network code. Events are held in memory and never written to disk by the app, and the socket is readable only by your user account.</p></details>
       <details><summary>It's not showing anything. What should I check?</summary><p>Make sure the app is running (capsule icon in the menu bar), the hooks are installed, and you restarted your Claude Code sessions afterwards. Sessions started earlier don't pick up new hooks.</p></details>
       <details><summary>Is this an official Anthropic product?</summary><p>No. Notch Agents is an independent open-source project and isn't affiliated with or endorsed by Anthropic. "Claude" is a trademark of Anthropic.</p></details>
