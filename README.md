@@ -33,7 +33,12 @@ For a signed, notarized release set `SIGN_IDENTITY="Developer ID Application: â€
 - Signing + notarization turn on automatically when these repo secrets exist: `MACOS_CERT_P12` (base64 Developer ID Application .p12), `MACOS_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`. Without them, releases are ad-hoc signed.
 
 ## Landing page
-Live at **https://notch-agents.vercel.app**. `docs/index.html` is a single self-contained page; Vercel deploys it from `/docs` on every push to `main`.
+Live at **https://notch-agents.vercel.app**. Vercel deploys the static `/docs` folder on every push to `main`. No build step.
+
+- `docs/index.html`, `site.css`, `site.js`: the page. It opens on a Mac desktop; scrolling starts four Claude Code sessions, then the pill comes out of the notch.
+- The island on the page is not a recording. `site.js` carries a JavaScript port of `AgentStore.swift` and feeds it hook events of the same shape Claude Code sends, so if you change how the app handles an event, mirror it there.
+- `docs/scrollcraft.js` / `scrollcraft.css`: the [scroll-craft](https://github.com/nateherkai/scroll-craft) engine, unmodified. Fonts are self-hosted. Licences are in `docs/THIRD-PARTY.md`.
+- Preview locally with `python3 -m http.server -d docs 4500`.
 
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md). MIT licensed.
