@@ -183,7 +183,7 @@ body[data-mode="doc"] .menubar {
 .wall__p--fore { transform: translate3d(calc(var(--mx, 0) * -18px), calc(var(--my, 0) * -8px + var(--drift, 0) * 58px), 0) scale(calc(1 + var(--focus) * 0.34)); transform-origin: 50% 100%; }
 
 .wins {
-  position: absolute; inset: 0;
+  position: absolute; inset: 0; z-index: 3;
   transform: translate3d(calc(var(--mx, 0) * 6px), calc(var(--my, 0) * 4px), 0) scale(calc(1 + (var(--zoom) - 1) * 0.42)); transform-origin: 50% 12%;
   opacity: calc(1 - var(--focus) * 0.3);
   will-change: transform;
@@ -240,7 +240,7 @@ body[data-mode="doc"] .menubar {
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.22), var(--sc-e2);
 }
 .dock__i { position: relative; width: 50px; height: 50px; display: block; }
-.dock__i svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 1.5px 2px rgb(0 0 0 / 0.3)); }
+.dock__i svg, .dock__i img { width: 100%; height: 100%; display: block; filter: drop-shadow(0 1.5px 2px rgb(0 0 0 / 0.3)); user-select: none; -webkit-user-drag: none; }
 .dock__i--term::after {
   content: ""; position: absolute; bottom: -5px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%;
   background: rgb(255 255 255 / 0.85); opacity: 0; transition: opacity 200ms linear;
@@ -250,13 +250,13 @@ body[data-mode="doc"] .menubar {
 
 /* Focus pull: the desktop falls back while the notch is the subject. */
 .desk__dim {
-  position: absolute; inset: 0; pointer-events: none;
+  position: absolute; inset: 0; pointer-events: none; z-index: 4;
   background: radial-gradient(130% 100% at 50% 0%, rgb(7 11 26 / 0.30) 0%, rgb(7 11 26 / 0.56) 75%);
   opacity: var(--focus);
 }
 
 .desk__capscrim {
-  position: absolute; inset: 0; pointer-events: none; z-index: 4;
+  position: absolute; inset: 0; pointer-events: none; z-index: 2;   /* under the windows and dock, over the wallpaper */
   background: radial-gradient(52% 48% at 12% 92%, rgb(8 12 30 / 0.66) 0%, rgb(8 12 30 / 0.42) 45%, transparent 100%);
 }
 
