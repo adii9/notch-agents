@@ -46,7 +46,7 @@
     <span class="mb-status" id="mbStatus" title="Notch Agents is running">
       <svg width="15" height="8" viewBox="0 0 15 8" aria-hidden="true"><rect width="15" height="8" rx="4" fill="currentColor"/></svg>
     </span>
-    <a class="mb-item mb-gh" href="https://github.com/adii9/notch-agents">GitHub</a>
+    <a class="mb-item mb-star" href="https://github.com/adii9/notch-agents" target="_blank" rel="noopener" aria-label="Star Notch Agents on GitHub (opens in a new tab)"><svg class="i-star" viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M12 3.1l2.75 5.7 6.2.9-4.5 4.4 1.05 6.2L12 17.3l-5.5 3 1.05-6.2-4.5-4.4 6.2-.9z" fill="currentColor"/></svg><span>Star</span><span class="mb-star__n" data-stars hidden></span></a>
     <a class="mb-item mb-dl" data-dl href="https://github.com/adii9/notch-agents/releases/latest">Download</a>
     <time class="mb-clock" id="mbClock" aria-hidden="true"></time>
   </div>
@@ -121,7 +121,7 @@
               <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5.5 19.5h13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               Download for macOS
             </a>
-            <a class="btn btn--ghost" href="https://github.com/adii9/notch-agents">View the source</a>
+            <a class="btn btn--ghost" href="https://github.com/adii9/notch-agents" target="_blank" rel="noopener"><svg class="i-star" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 3.1l2.75 5.7 6.2.9-4.5 4.4 1.05 6.2L12 17.3l-5.5 3 1.05-6.2-4.5-4.4 6.2-.9z" fill="currentColor"/></svg>Star on GitHub</a>
           </div>
           <p class="hero__meta">Free and open source · macOS 14 or later · <span data-ver>v0.2.0</span></p>
         </div>
@@ -293,12 +293,16 @@ cd notch-agents &amp;&amp; Scripts/build-app.sh</pre>
             </div>
           </div>
           <p class="dmg__hint" id="dmgHint" aria-live="polite">Drag it across to download.</p>
+          <p class="dmg__star" id="dmgStar" hidden>A star helps other Claude Code users find it. <a href="https://github.com/adii9/notch-agents" target="_blank" rel="noopener"><svg class="i-star" viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M12 3.1l2.75 5.7 6.2.9-4.5 4.4 1.05 6.2L12 17.3l-5.5 3 1.05-6.2-4.5-4.4 6.2-.9z" fill="currentColor"/></svg>Star on GitHub</a></p>
           <p class="dmg__status"><span data-ver>v0.2.0</span> · <span data-size>0.9 MB</span> · macOS 14 or later · Apple silicon and Intel</p>
         </div>
-        <a class="btn btn--primary btn--lg" data-dl href="https://github.com/adii9/notch-agents/releases/latest">
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 4v11m0 0-4.500-4.500M12 15l4.500-4.500M5.500 19.500h13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Download for macOS
-        </a>
+        <div class="close__cta">
+          <a class="btn btn--primary btn--lg" data-dl href="https://github.com/adii9/notch-agents/releases/latest">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 4v11m0 0-4.500-4.500M12 15l4.500-4.500M5.500 19.500h13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Download for macOS
+          </a>
+          <a class="btn btn--ghost btn--lg" href="https://github.com/adii9/notch-agents" target="_blank" rel="noopener"><svg class="i-star" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3.1l2.75 5.7 6.2.9-4.5 4.4 1.05 6.2L12 17.3l-5.5 3 1.05-6.2-4.5-4.4 6.2-.9z" fill="currentColor"/></svg>Star on GitHub</a>
+        </div>
       </div>
     </div>
 
