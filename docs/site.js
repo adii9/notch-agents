@@ -577,6 +577,7 @@
         app.classList.add('gone');
         app.style.transform = 'translate3d(' + (cur[0] + (r.left + r.width / 2) - (a.left + a.width / 2)) + 'px,' + (cur[1] + (r.top + r.height / 2) - (a.top + a.height / 2) - 14) + 'px,0) scale(0.45)';
         hint.textContent = 'Downloading. Open the disk image and do that again.';
+        revealStar();
         setTimeout(function () { location.href = app.href; }, 320);
         setTimeout(function () { app.classList.remove('gone'); app.classList.add('back'); app.style.transform = ''; }, 2200);
       } else {
@@ -627,6 +628,37 @@
         apply(rel);
         try { sessionStorage.setItem('na-release', JSON.stringify(rel)); } catch (_) {}
       }).catch(function () {});
+  })();
+
+  /* =================================================================== STARS
+     Two small things around the GitHub star: the live count in the menu bar
+     (only once it is worth showing), and a one-line ask that appears after a
+     download starts. Nothing here pops up or blocks anything. */
+  var STAR_MIN = 25;
+  function revealStar() { var el = $('#dmgStar'); if (el) el.hidden = false; }
+  (function () {
+    var n = $('[data-stars]');
+    var show = function (c) {
+      if (!n || !(c >= STAR_MIN)) return;
+      n.textContent = c >= 1000 ? (c / 1000).toFixed(c >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'k' : String(c);
+      n.hidden = false;
+    };
+    try { var cached = JSON.parse(sessionStorage.getItem('na-stars') || 'null'); if (cached && typeof cached.n === 'number') { show(cached.n); return; } } catch (_) {}
+    if (!window.fetch || !n) return;
+    fetch('https://api.github.com/repos/adii9/notch-agents', { headers: { Accept: 'application/vnd.github+json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || typeof j.stargazers_count !== 'number') return;
+        show(j.stargazers_count);
+        try { sessionStorage.setItem('na-stars', JSON.stringify({ n: j.stargazers_count })); } catch (_) {}
+      }).catch(function () {});
+    // A click on any download control in the install section starts a download:
+    // that is the moment the ask makes sense.
+    var cg = $('.close__get');
+    if (cg) cg.addEventListener('click', function (e) {
+      if (e.defaultPrevented || !e.target.closest('[data-dl]')) return;
+      setTimeout(revealStar, 400);
+    });
   })();
 
   /* ================================================================ PAYMENT

@@ -72,6 +72,10 @@ body[data-mode="doc"] .menubar {
 }
 .mb-item:active, .mb-app:active { background: rgb(255 255 255 / 0.24); }
 .mb-dl { background: rgb(255 255 255 / 0.16); font-weight: 600; margin-inline: 4px; }
+.mb-star { gap: 6px; }
+.mb-star .i-star { color: var(--sc-accent); flex: none; }
+.mb-star__n { font-variant-numeric: tabular-nums; opacity: 0.72; }
+.mb-star__n[hidden] { display: none; }
 .mb-status {
   display: inline-flex; align-items: center; height: 24px; padding: 0 8px;
   opacity: 0; transform: scale(0.8); transition: opacity 260ms var(--sc-ease-out), transform 260ms var(--sc-ease-out);
@@ -443,6 +447,8 @@ body[data-mode="doc"] .menubar {
 .src pre { margin: 0; padding: 8px 14px 14px; overflow-x: auto; font: 0.8rem/1.7 var(--sc-font-mono); letter-spacing: 0; color: #e9e6df; }
 
 .close__get { display: grid; justify-items: center; gap: 1.25rem; }
+.close__cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem; }
+.btn .i-star { color: var(--sc-accent); flex: none; }
 .dmg {
   width: min(100%, 31rem); border-radius: 14px; overflow: hidden; color: #fff;
   background: rgb(22 24 33 / 0.86);
@@ -462,6 +468,10 @@ body[data-mode="doc"] .menubar {
 .dmg__dest svg { transition: transform 200ms var(--sc-ease-out), filter 200ms linear; filter: drop-shadow(0 8px 14px rgb(0 0 0 / 0.35)); }
 .dmg__dest.over svg { transform: scale(1.08); filter: drop-shadow(0 8px 14px rgb(0 0 0 / 0.35)) brightness(1.15); }
 .dmg__arrow { margin-top: 36px; color: rgb(255 255 255 / 0.42); }
+.dmg__star { margin: -0.5rem 0 0; padding: 0 1rem 1.1rem; text-align: center; font-size: 0.82rem; color: rgb(255 255 255 / 0.8); animation: rise 500ms var(--sc-ease-out) both; }
+.dmg__star[hidden] { display: none; }
+.dmg__star a { display: inline-flex; align-items: center; gap: 5px; color: #fff; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; padding-block: 4px; }
+.dmg__star .i-star { color: var(--sc-accent); }
 .dmg__hint { margin: 0; padding: 0 1rem 1.1rem; text-align: center; font-size: 0.82rem; color: rgb(255 255 255 / 0.66); }
 /* the status bar a Finder window has, carrying what a status bar carries */
 .dmg__status { margin: 0; padding: 0.6rem 1rem; text-align: center; font: 0.76rem/1.3 var(--ui); letter-spacing: 0; color: rgb(255 255 255 / 0.7); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08); background: rgb(255 255 255 / 0.03); }
@@ -473,14 +483,22 @@ body[data-mode="doc"] .menubar {
 @media (hover: hover) and (pointer: fine) { .foot a:hover { color: #fff; text-decoration: underline; } }
 
 /* ============================================================== RESPONSIVE */
+/* The menu bar shares the top edge with the notch, so it sheds items as the window narrows
+   rather than running underneath it. Left side: App, How it works, Privacy, FAQ, Support, Install. */
+@media (max-width: 1229px) {
+  .mb-left > a:nth-child(3), .mb-left > a:nth-child(4) { display: none; }   /* Privacy, FAQ */
+}
+@media (max-width: 979px) {
+  .mb-left > a:nth-child(2), .mb-left > a:nth-child(5) { display: none; }   /* How it works, Support */
+  .mb-clock { display: none; }
+}
 @media (max-width: 1080px) {
-  .mb-gh { display: none; }
   .caps { width: min(24rem, 34vw); }
 }
 @media (max-width: 860px) {
   :root { --mb-h: 44px; --notch-w: 116px; }
   .menubar { font-size: 14px; }
-  .mb-left .mb-item, .mb-clock, .mb-status { display: none; }
+  .mb-left .mb-item, .mb-clock, .mb-status, .mb-star { display: none; }
   .mb-app, .mb-item { height: 32px; }
 
   .wall__p { object-position: 66% 50%; }
