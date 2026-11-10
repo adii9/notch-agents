@@ -38,7 +38,7 @@ SIL Open Font License 1.1. The full licence text is in [`fonts/OFL.txt`](fonts/O
 
 ## Apple icons
 
-The Finder, Messages, Notes and System Settings icons in `assets/dock/` are Apple's artwork. They appear
+The Finder, Messages, Notes, Terminal and System Settings icons in `assets/dock/` are Apple's artwork. They appear
 only to depict the macOS dock in the page's demo. They are not covered by this repository's MIT licence,
 and Apple retains all rights in them. Apple, macOS, Finder, Messages, Notes, Safari and Terminal are
 trademarks of Apple Inc. This project is not affiliated with or endorsed by Apple.
