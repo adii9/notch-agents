@@ -629,5 +629,74 @@
       }).catch(function () {});
   })();
 
+  /* ================================================================ PAYMENT
+     Razorpay Checkout. The amount and the key secret live on the server
+     (docs/api). The checkout script is fetched only when Pay is pressed, so
+     visiting the page makes no request to Razorpay. */
+  (function () {
+    var box = $('#pay'), btn = $('#payBtn'), msg = $('#payMsg');
+    if (!box || !btn) return;
+    var label = btn.textContent, script = null, confirming = false;
+
+    function set(state, text) {
+      box.dataset.state = state;
+      msg.textContent = text || '';
+      btn.disabled = state === 'busy' || state === 'done' || state === 'off';
+      btn.textContent = state === 'busy' ? 'Working…' : state === 'done' ? 'Paid. Thank you' : label;
+    }
+    function post(url, body) {
+      return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) })
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { j.status = r.status; return j; }); });
+    }
+    function loadCheckout() {
+      if (window.Razorpay) return Promise.resolve();
+      if (script) return script;
+      script = new Promise(function (res, rej) {
+        var s = document.createElement('script');
+        s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        s.onload = res;
+        s.onerror = function () { script = null; rej(new Error('script')); };
+        document.head.appendChild(s);
+      });
+      return script;
+    }
+
+    btn.addEventListener('click', function () {
+      confirming = false;
+      set('busy', 'Opening checkout…');
+      Promise.all([post('/api/create-order'), loadCheckout()]).then(function (r) {
+        var o = r[0];
+        if (o.status === 503) { set('off', 'Payments are not switched on yet. Check back soon.'); return; }
+        if (!o.orderId) throw new Error('order');
+        var rz = new window.Razorpay({
+          key: o.keyId, order_id: o.orderId, amount: o.amount, currency: o.currency,
+          name: 'Notch Agents', description: 'One-time support', image: location.origin + '/icon.png',
+          theme: { color: '#ff9f0a' },
+          handler: function (resp) {
+            confirming = true;
+            set('busy', 'Confirming your payment…');
+            post('/api/verify', resp).then(function (v) {
+              if (v.ok) set('done', 'Payment ' + resp.razorpay_payment_id + ' went through. Thank you.');
+              else set('error', 'We could not confirm this payment here. If you were charged, keep this ID: ' + resp.razorpay_payment_id);
+            }).catch(function () {
+              set('error', 'We could not reach the server to confirm. If you were charged, keep this ID: ' + resp.razorpay_payment_id);
+            });
+          },
+          modal: { ondismiss: function () { if (!confirming) set('idle', 'Checkout closed. Nothing was charged.'); } }
+        });
+        rz.on('payment.failed', function (e) {
+          confirming = true;
+          set('error', 'The payment did not go through' + (e && e.error && e.error.description ? ': ' + e.error.description : '') + '. You can try again.');
+        });
+        rz.open();
+        msg.textContent = '';
+      }).catch(function (err) {
+        set('error', err && err.message === 'script'
+          ? 'Could not load Razorpay. Check your connection and try again. Nothing was charged.'
+          : 'Could not start the payment. Nothing was charged. Please try again.');
+      });
+    });
+  })();
+
   requestAnimationFrame(frame);
 })();

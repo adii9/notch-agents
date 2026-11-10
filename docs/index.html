@@ -39,6 +39,7 @@
     <a class="mb-item" href="#how">How it works</a>
     <a class="mb-item" href="#privacy">Privacy</a>
     <a class="mb-item" href="#faq">FAQ</a>
+    <a class="mb-item" href="#support">Support</a>
     <a class="mb-item" href="#install">Install</a>
   </nav>
   <div class="mb-right">
@@ -217,8 +218,35 @@ P=<span class="s">"$(cat)"</span>
         <details><summary>What about questions Claude asks me?</summary><p>They show up on the island as a heads-up, so you know a session is waiting. You answer them in the terminal, because Allow and Deny cannot pick an option.</p></details>
         <details><summary>macOS says it cannot verify the app.</summary><p>This build is not notarized yet. On first launch, right-click Notch Agents in Applications and choose Open. On macOS 15 or later, open System Settings, go to Privacy &amp; Security and choose Open Anyway. Or build it yourself from source: it is one script.</p></details>
         <details><summary>Nothing shows up at the notch. What should I check?</summary><p>That the app is running (a capsule icon in the menu bar), that the hooks are installed, and that you restarted your Claude Code sessions afterwards. Sessions started before the install do not pick up new hooks.</p></details>
+        <details><summary>Do I have to pay anything?</summary><p>No. Every feature is in the free download and the code is MIT licensed. The one-time payment below is optional support and unlocks nothing.</p></details>
         <details><summary>How do I remove it?</summary><p>Choose Remove Claude Code hooks from the menu bar icon, quit the app and delete it from Applications. Your settings backups stay next to <code>~/.claude/settings.json</code>.</p></details>
         <details><summary>Is this an Anthropic product?</summary><p>No. Notch Agents is an independent open-source project. It is not affiliated with or endorsed by Anthropic. "Claude" is a trademark of Anthropic.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================== SUPPORT == -->
+  <section id="support" class="doc support">
+    <div class="sc-wrap support__grid">
+      <div class="support__copy sc-stack" data-sc-in data-sc-stagger="70">
+        <h2 class="sc-display sc-display--md">Chip in, if it is useful.</h2>
+        <p class="sc-body">Notch Agents is free and MIT licensed, and it stays that way. If it saves you a walk to the terminal, a one-time payment helps keep it maintained.</p>
+        <dl class="facts">
+          <div><dt>Price</dt><dd>&#8377;449, about $5</dd></div>
+          <div><dt>Billing</dt><dd>Once. No subscription and no account.</dd></div>
+          <div><dt>What you get</dt><dd>Nothing is locked. Every feature is in the free download.</dd></div>
+          <div><dt>Pay with</dt><dd>UPI, cards, netbanking or wallets, as shown at checkout.</dd></div>
+          <div><dt>Your details</dt><dd>Razorpay processes the payment. Notch Agents never sees your card or UPI details, and the checkout script loads only when you press Pay.</dd></div>
+        </dl>
+      </div>
+
+      <div class="pay" id="pay" data-state="idle" data-sc-in>
+        <p class="pay__label">One-time support</p>
+        <p class="pay__price"><span aria-hidden="true">&#8377;</span><b>449</b></p>
+        <p class="pay__sub">about $5 &middot; billed once</p>
+        <button class="btn btn--primary btn--lg pay__btn" id="payBtn" type="button">Pay &#8377;449</button>
+        <p class="pay__msg" id="payMsg" role="status" aria-live="polite"></p>
+        <p class="pay__fine">Payments are processed by Razorpay.</p>
       </div>
     </div>
   </section>

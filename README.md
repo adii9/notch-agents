@@ -40,5 +40,11 @@ Live at **https://notch-agents.vercel.app**. Vercel deploys the static `/docs` f
 - `docs/scrollcraft.js` / `scrollcraft.css`: the [scroll-craft](https://github.com/nateherkai/scroll-craft) engine, unmodified. Fonts are self-hosted. Licences are in `docs/THIRD-PARTY.md`.
 - Preview locally with `python3 -m http.server -d docs 4500`.
 
+### Payments (optional support, Razorpay)
+`docs/api/` holds two Vercel functions: `create-order` (creates a Razorpay order) and `verify` (checks the payment signature). No dependencies.
+- Set `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` in the Vercel project settings (Environment Variables). Use `rzp_test_` keys for Preview and `rzp_live_` keys for Production. Never commit them. Without them the Pay button shows "not switched on yet" and nothing breaks.
+- The price lives in one place: `AMOUNT_PAISE` in `docs/api/_razorpay.js`. The page text (`index.html`, search for the rupee sign) must be changed to match.
+- The server decides the amount, so the browser cannot change it. Razorpay's checkout script loads only when someone presses Pay.
+
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md). MIT licensed.
