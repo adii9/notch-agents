@@ -163,7 +163,8 @@ Live at **https://notch-agents.vercel.app**. Vercel deploys the static `docs/` f
 
 - `docs/index.html`, `site.css`, `site.js` are the page. The island on it runs a JavaScript port of `AgentStore.swift` fed with hook events of the real shape. If you change how the app handles an event, mirror it in `site.js`.
 - `docs/scrollcraft.js` and `scrollcraft.css` are the [scroll-craft](https://github.com/nateherkai/scroll-craft) engine, unmodified. Fonts are self-hosted. Licences are in `docs/THIRD-PARTY.md`.
-- Preview locally: `python3 -m http.server -d docs 4500`.
+- Visits are counted with Vercel Web Analytics (no cookies). It needs Analytics enabled in the Vercel project and a fresh deployment, and the footer says so. The app itself collects nothing.
+- Preview locally: `python3 -m http.server -d docs 4500`. The analytics script 404s locally, which is harmless.
 
 **Payments (optional support, Razorpay).** `docs/api/` holds two dependency-free Vercel functions, `create-order` and `verify`.
 - Set `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` in the Vercel project settings. Use `rzp_test_` keys for Preview and `rzp_live_` keys for Production. Never commit them. Without them the Pay button says payments aren't switched on yet.
