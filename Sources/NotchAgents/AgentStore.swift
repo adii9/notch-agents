@@ -7,6 +7,7 @@ struct HookEvent: Decodable {
     let agent_id: String?
     let agent_type: String?
     let tool_name: String?
+    let tool_use_id: String?
     let tool_input: [String: JSONValue]?
     let message: String?
     let cwd: String?
@@ -52,6 +53,24 @@ enum JSONValue: Decodable {
 
 enum AgentState { case running, done }
 
+/// One tool call in an agent's live trace.
+struct Step: Identifiable {
+    let id = UUID()
+    let toolUseID: String?
+    let tool: String
+    let label: String
+    let startedAt = Date()
+    var endedAt: Date?
+}
+
+/// One item of Claude's own task list (TodoWrite in the CLI, update_plan in the desktop app).
+struct TaskItem: Identifiable {
+    let id = UUID()
+    var content: String
+    var activeForm: String?
+    var status: String  // "pending" | "in_progress" | "completed"
+}
+
 struct AgentInfo: Identifiable {
     let id: String
     var type: String
@@ -60,6 +79,9 @@ struct AgentInfo: Identifiable {
     var state: AgentState
     let startedAt: Date
     var endedAt: Date?
+    /// Most recent tool calls, oldest first, capped at `AgentStore.maxSteps`.
+    var steps: [Step] = []
+    var tasks: [TaskItem] = []
 }
 
 /// A Claude Code permission request waiting for an answer from the island.
@@ -85,12 +107,15 @@ final class AgentStore {
     var agents: [AgentInfo] = []
     var pending: [PermissionPrompt] = []
     var lastMessage: String?
+    /// Agent whose live trace the island shows; nil (or gone) means the first running one.
+    var tracedAgent: String?
 
     /// After this, the prompt is dropped and Claude falls back to its own terminal prompt.
     /// Must stay below the hook's `nc -w` (30s) and the hook timeout in settings (40s).
     static let promptTimeout: TimeInterval = 25
     /// Question cards are only a heads-up; they clear when answered (PostToolUse) or after this.
     static let questionTimeout: TimeInterval = 600
+    static let maxSteps = 5
 
     var running: [AgentInfo] { agents.filter { $0.state == .running } }
     var isVisible: Bool { !agents.isEmpty || !pending.isEmpty }
@@ -111,9 +136,24 @@ final class AgentStore {
             finish(key)
         case "PreToolUse":
             upsert(key, type: type, project: project)
-            if let i = index(key) { agents[i].currentTool = describe(e) }
+            guard let i = index(key) else { break }
+            if let tasks = taskList(e, current: agents[i].tasks) {
+                // Task-list updates feed the checklist, not the step log.
+                agents[i].tasks = tasks
+            } else {
+                agents[i].currentTool = describe(e)
+                agents[i].steps.append(Step(toolUseID: e.tool_use_id, tool: e.tool_name ?? "tool", label: describe(e)))
+                if agents[i].steps.count > Self.maxSteps { agents[i].steps.removeFirst(agents[i].steps.count - Self.maxSteps) }
+            }
         case "PostToolUse":
-            if let i = index(key) { agents[i].currentTool = nil }
+            if let i = index(key) {
+                agents[i].currentTool = nil
+                // Match by tool_use_id; fall back to the oldest open call of the same tool.
+                let open = agents[i].steps.indices.filter { agents[i].steps[$0].endedAt == nil }
+                let s = open.first { e.tool_use_id != nil && agents[i].steps[$0].toolUseID == e.tool_use_id }
+                    ?? open.first { agents[i].steps[$0].tool == e.tool_name }
+                if let s { agents[i].steps[s].endedAt = Date() }
+            }
             // The tool ran, so any island prompt for it was answered elsewhere (e.g. in the terminal).
             dropPending { $0.agentKey == key && $0.tool == (e.tool_name ?? "") }
         case "PermissionRequest":
@@ -177,7 +217,10 @@ final class AgentStore {
     private func upsert(_ key: String, type: String, project: String) {
         if let i = index(key) {
             agents[i].type = type
-            if agents[i].state == .done { agents[i].state = .running; agents[i].endedAt = nil }
+            if agents[i].state == .done {
+                // A new turn: start a fresh trace. The task list carries over until Claude replaces it.
+                agents[i].state = .running; agents[i].endedAt = nil; agents[i].steps = []
+            }
         } else {
             agents.append(AgentInfo(id: key, type: type, project: project, currentTool: nil,
                                     state: .running, startedAt: Date()))
@@ -189,6 +232,8 @@ final class AgentStore {
         agents[i].state = .done
         agents[i].currentTool = nil
         agents[i].endedAt = Date()
+        // Calls that never reported back (failed or interrupted) stop spinning when the turn ends.
+        for s in agents[i].steps.indices where agents[i].steps[s].endedAt == nil { agents[i].steps[s].endedAt = Date() }
         scheduleCleanup()
     }
 
@@ -211,6 +256,40 @@ final class AgentStore {
         if d.hasPrefix("/") { d = (d as NSString).lastPathComponent }
         if d.count > 40 { d = String(d.prefix(40)) + "…" }
         return "\(tool) \(d)"
+    }
+
+    /// The task list after this call, or nil when the call isn't a task-list update.
+    /// TodoWrite always sends the whole list; the desktop app's update_plan may send only a change.
+    private func taskList(_ e: HookEvent, current: [TaskItem]) -> [TaskItem]? {
+        let input = e.tool_input ?? [:]
+        func items(_ v: JSONValue?, text: String) -> [TaskItem] {
+            (v?.array ?? []).compactMap { $0.object }.map {
+                TaskItem(content: $0[text]?.string ?? "", activeForm: $0["activeForm"]?.string,
+                         status: $0["status"]?.string ?? "pending")
+            }
+        }
+        switch e.tool_name ?? "" {
+        case "TodoWrite":
+            return items(input["todos"], text: "content")
+        case let t where t.hasSuffix("__update_plan"):
+            if input["items"] != nil { return items(input["items"], text: "content") }
+            var list = current
+            let isTrue: (JSONValue?) -> Bool = { if case .bool(true)? = $0 { return true } else { return false } }
+            if isTrue(input["advance"]) {
+                if let i = list.firstIndex(where: { $0.status == "in_progress" }) { list[i].status = "completed" }
+                if let i = list.firstIndex(where: { $0.status == "pending" }) { list[i].status = "in_progress" }
+            }
+            for d in input["done"]?.array ?? [] {
+                if case .number(let n) = d, list.indices.contains(Int(n) - 1) { list[Int(n) - 1].status = "completed" }
+            }
+            if case .number(let n)? = input["start"], list.indices.contains(Int(n) - 1) {
+                for i in list.indices where list[i].status == "in_progress" { list[i].status = "pending" }
+                list[Int(n) - 1].status = "in_progress"
+            }
+            return list
+        default:
+            return nil
+        }
     }
 
     /// Everything the user needs to judge a permission request: never truncated to a file name.
