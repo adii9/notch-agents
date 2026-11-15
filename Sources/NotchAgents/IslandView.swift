@@ -93,11 +93,22 @@ struct ApprovalCard: View {
             }
             Text(prompt.isQuestion ? prompt.title : "\(prompt.title) · \(prompt.tool)")
                 .font(.system(size: 11)).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
-            Text(prompt.detail)
+            if !prompt.isQuestion, let cwd = prompt.cwd {
+                Text("in \(cwd)")
+                    .font(.system(size: 10, design: .monospaced)).foregroundStyle(.white.opacity(0.6))
+                    .frame(maxWidth: .infinity, alignment: .leading).fixedSize(horizontal: false, vertical: true)
+            }
+            let detailText = Text(prompt.detail)
                 .font(.system(size: 11, design: .monospaced)).foregroundStyle(.white)
-                .lineLimit(prompt.isQuestion ? 12 : 6).frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(prompt.isQuestion ? 12 : nil).frame(maxWidth: .infinity, alignment: .leading)
                 .padding(8).background(Color.white.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            if prompt.isQuestion {
+                detailText
+            } else {
+                // Full command stays readable: long ones scroll instead of being cut off.
+                ScrollView(.vertical) { detailText }.frame(maxHeight: 120)
+            }
             if prompt.isQuestion {
                 HStack {
                     Text("Answer it in the terminal").font(.system(size: 10)).foregroundStyle(.white.opacity(0.45))

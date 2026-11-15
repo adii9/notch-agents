@@ -70,6 +70,8 @@ struct PermissionPrompt: Identifiable {
     let title: String
     let tool: String
     let detail: String
+    /// Working directory the tool will run in, shown in full so a path can't hide in the summary.
+    let cwd: String?
     /// Claude asking the user a question (AskUserQuestion): shown for information only and answered
     /// in the terminal, because Allow/Deny can't pick an option.
     let isQuestion: Bool
@@ -124,7 +126,7 @@ final class AgentStore {
             let prompt = PermissionPrompt(session: session, agentKey: key, title: type,
                                           tool: e.tool_name ?? "tool",
                                           detail: isQuestion ? questionDetail(e) : fullDetail(e),
-                                          isQuestion: isQuestion, responder: responder)
+                                          cwd: e.cwd, isQuestion: isQuestion, responder: responder)
             pending.append(prompt)
             let wait = isQuestion ? Self.questionTimeout : Self.promptTimeout
             Task { @MainActor in
