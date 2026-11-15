@@ -3,6 +3,10 @@ import SwiftUI
 struct IslandView: View {
     let store: AgentStore
     let expanded: Bool
+    private var traced: String? {
+        if let selected = store.tracedAgent, store.agents.contains(where: { $0.id == selected }) { return selected }
+        return (store.running.first ?? store.agents.first)?.id
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -57,6 +61,9 @@ struct IslandView: View {
                             .font(.system(size: 11, design: .monospaced)).foregroundStyle(.white.opacity(0.6))
                     }
                 }
+                .contentShape(Rectangle())
+                .onTapGesture { store.tracedAgent = agent.id }
+                if agent.id == traced { TraceView(agent: agent) }
             }
         }
     }
@@ -64,6 +71,67 @@ struct IslandView: View {
     private func format(_ t: TimeInterval) -> String {
         let s = Int(t)
         return s < 60 ? "\(s)s" : "\(s / 60)m \(s % 60)s"
+    }
+}
+
+/// Live trace for one agent: Claude's task list, then its most recent tool calls.
+struct TraceView: View {
+    let agent: AgentInfo
+    /// Long task lists show this many, centred on the active item, so the notch stays on screen.
+    static let maxTasks = 7
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if !agent.tasks.isEmpty {
+                let done = agent.tasks.filter { $0.status == "completed" }.count
+                Text("Tasks \(done)/\(agent.tasks.count)").font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.45))
+                ForEach(visibleTasks) { task in
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        icon(task.status).frame(width: 12)
+                        Text(task.status == "in_progress" ? (task.activeForm ?? task.content) : task.content)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.white.opacity(task.status == "pending" ? 0.5 : 0.85))
+                            .strikethrough(task.status == "completed", color: .white.opacity(0.4))
+                            .lineLimit(1)
+                    }
+                }
+            }
+            if !agent.steps.isEmpty {
+                Text("Recent steps").font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.45)).padding(.top, agent.tasks.isEmpty ? 0 : 4)
+                ForEach(agent.steps) { step in
+                    HStack(spacing: 6) {
+                        icon(step.endedAt == nil ? "in_progress" : "completed").frame(width: 12)
+                        Text(step.label).font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(.white.opacity(0.8)).lineLimit(1).truncationMode(.middle)
+                        Spacer(minLength: 4)
+                        TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                            let t = (step.endedAt ?? ctx.date).timeIntervalSince(step.startedAt)
+                            Text(t < 1 ? "<1s" : t < 60 ? "\(Int(t))s" : "\(Int(t) / 60)m \(Int(t) % 60)s")
+                                .font(.system(size: 10, design: .monospaced)).foregroundStyle(.white.opacity(0.45))
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.leading, 18)
+    }
+
+    private var visibleTasks: ArraySlice<TaskItem> {
+        let all = agent.tasks
+        guard all.count > Self.maxTasks else { return all[...] }
+        let focus = all.firstIndex { $0.status == "in_progress" } ?? all.firstIndex { $0.status == "pending" } ?? all.count - 1
+        let start = min(max(0, focus - Self.maxTasks / 2), all.count - Self.maxTasks)
+        return all[start..<start + Self.maxTasks]
+    }
+
+    @ViewBuilder private func icon(_ status: String) -> some View {
+        switch status {
+        case "completed": Image(systemName: "checkmark.circle.fill").font(.system(size: 10)).foregroundStyle(.green)
+        case "in_progress": Image(systemName: "circle.lefthalf.filled").font(.system(size: 10)).foregroundStyle(.orange)
+        default: Image(systemName: "circle").font(.system(size: 10)).foregroundStyle(.white.opacity(0.35))
+        }
     }
 }
 
@@ -157,5 +225,6 @@ enum IslandLayout {
     static var collapsedHeight: CGFloat { max(notchHeight, 34) }
     static let expandedWidth: CGFloat = 340
     static let panelWidth: CGFloat = 360
-    static let panelHeight: CGFloat = 480
+    /// Tall enough for an approval card plus a full trace; clicks outside the island pass through.
+    static let panelHeight: CGFloat = 720
 }
