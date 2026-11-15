@@ -57,7 +57,7 @@ Free, open source, and it never talks to the network.
 
 - **One row per chat.** Each session carries its chat title and project folder. Sub-agents get rows of their own and turn green when they finish.
 - **Live tool and timer.** See the tool and file each agent is on right now, and how long it has run.
-- **Approve from the notch.** When Claude asks for permission, the island opens with the exact command or file and Allow and Deny buttons. Don't answer within 25 seconds and Claude asks in the terminal as usual.
+- **Approve from the notch.** When Claude asks for permission, the island opens with the working directory, the full command (long ones scroll, never cut off) and Allow and Deny buttons. Don't answer within 25 seconds and Claude asks in the terminal as usual.
 - **Out of the way.** A compact pill wraps the notch with a spinner and the active count. Hover to expand it. A few seconds after everything finishes, it tidies itself away.
 - **Private.** No network code, events held in memory, one local socket only your account can read.
 
