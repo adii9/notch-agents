@@ -150,6 +150,16 @@ For a signed, notarized build set `SIGN_IDENTITY="Developer ID Application: …"
 
 CI builds every push and PR, checks the scripts and runs `Scripts/test-hook.sh`. Pushing a `v*` tag builds the DMG, adds `SHA256SUMS.txt` and publishes a release. Signing and notarization switch on automatically when these repo secrets exist: `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`. Without them, releases are ad-hoc signed.
 
+**Auto-update (Sparkle).** The app checks `releases/latest/download/appcast.xml` once a day and offers to install newer releases; the menu also has *Check for Updates…*. Each release's DMG is signed with an EdDSA key, and the app only installs updates that match the public key in `Scripts/build-app.sh`. The release workflow needs the private key as the `SPARKLE_PRIVATE_KEY` repo secret and refuses to publish without it. To set it up from the Mac whose Keychain holds the key:
+
+```bash
+swift package resolve
+.build/artifacts/sparkle/Sparkle/bin/generate_keys -x sparkle_private_key.txt
+gh secret set SPARKLE_PRIVATE_KEY < sparkle_private_key.txt && rm sparkle_private_key.txt
+```
+
+Keep a backup of that key (e.g. in a password manager). If it's lost, installed copies can no longer verify updates and everyone has to reinstall by hand.
+
 ## Contributing
 
 Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Ideas wanted: click-to-focus the terminal, sounds, a settings window, a layout for Macs without a notch.

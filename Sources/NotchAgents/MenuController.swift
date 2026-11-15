@@ -1,17 +1,23 @@
 import AppKit
 import ServiceManagement
+import Sparkle
 
-/// Menu bar icon: install/remove hooks, launch at login, quit.
+/// Menu bar icon: install/remove hooks, launch at login, check for updates, quit.
 @MainActor
-final class MenuController: NSObject, NSMenuDelegate {
+final class MenuController: NSObject, NSMenuDelegate, SPUStandardUserDriverDelegate {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let menu = NSMenu()
+    /// Sparkle, only in a bundled build: `swift run` has no Info.plist with a feed and key.
+    private lazy var updater: SPUStandardUpdaterController? =
+        Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") == nil ? nil
+            : SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: self)
 
     override init() {
         super.init()
         item.button?.image = NSImage(systemSymbolName: "capsule.fill", accessibilityDescription: "Notch Agents")
         menu.delegate = self
         item.menu = menu
+        _ = updater  // starts the daily background check
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -29,6 +35,16 @@ final class MenuController: NSObject, NSMenuDelegate {
         let login = make("Launch at login", #selector(toggleLogin))
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(login)
+        if let updater {
+            let check = NSMenuItem(title: "Check for Updates…",
+                                   action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
+            check.target = updater
+            menu.addItem(check)
+        }
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let about = NSMenuItem(title: "Version \(version ?? "dev")", action: nil, keyEquivalent: "")
+        about.isEnabled = false
+        menu.addItem(about)
         menu.addItem(.separator())
         menu.addItem(make("Quit Notch Agents", #selector(quit), key: "q"))
     }
@@ -60,6 +76,17 @@ final class MenuController: NSObject, NSMenuDelegate {
     }
 
     @objc private func quit() { NSApp.terminate(nil) }
+
+    // A menu bar app has no Dock icon or window, so an update found in the background must
+    // bring the app forward or Sparkle's window would open behind whatever the user is doing.
+    nonisolated var supportsGentleScheduledUpdateReminders: Bool { true }
+
+    nonisolated func standardUserDriverWillHandleShowingUpdate(_ handleShowingUpdate: Bool,
+                                                               forUpdate update: SUAppcastItem,
+                                                               state: SPUUserUpdateState) {
+        guard handleShowingUpdate, !state.userInitiated else { return }
+        Task { @MainActor in NSApp.activate() }
+    }
 
     private func run(_ body: () throws -> Void) {
         do { try body() } catch {
