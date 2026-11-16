@@ -18,8 +18,14 @@ jobs:
       #   APPLE_TEAM_ID        10-character team ID
       #   APPLE_APP_PASSWORD   app-specific password for that Apple ID
       HAS_SIGNING: ${{ secrets.MACOS_CERT_P12 != '' }}
+      # Required: the Sparkle EdDSA private key (generate_keys -x). It signs appcast.xml, which
+      # every installed copy reads to find this release, so a release without it is refused.
+      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Require the Sparkle signing key
+        run: '[ -n "$SPARKLE_PRIVATE_KEY" ] || { echo "Set the SPARKLE_PRIVATE_KEY repo secret (see README) so installed apps can update."; exit 1; }'
 
       - name: Hook smoke test
         run: Scripts/test-hook.sh
@@ -54,6 +60,9 @@ jobs:
       - name: Build app + DMG
         run: VERSION="${VERSION_TAG#v}" Scripts/build-app.sh
 
+      - name: Sign update + write appcast
+        run: Scripts/make-appcast.sh "${VERSION_TAG#v}" "dist/NotchAgents-${VERSION_TAG#v}.dmg"
+
       - name: Checksums
         run: cd dist && shasum -a 256 *.dmg > SHA256SUMS.txt && cat SHA256SUMS.txt
 
@@ -63,6 +72,7 @@ jobs:
           files: |
             dist/*.dmg
             dist/SHA256SUMS.txt
+            dist/appcast.xml
           generate_release_notes: true
           body: ${{ env.HAS_SIGNING == 'true' && 'Signed with Developer ID and notarized by Apple.' || 'This build is not notarized yet. On first launch, right-click Notch Agents in Applications and choose Open.' }}
 
