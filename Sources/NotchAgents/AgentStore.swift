@@ -168,6 +168,7 @@ final class AgentStore {
                                           detail: isQuestion ? questionDetail(e) : fullDetail(e),
                                           cwd: e.cwd, isQuestion: isQuestion, responder: responder)
             pending.append(prompt)
+            Chime.needsYou()
             let wait = isQuestion ? Self.questionTimeout : Self.promptTimeout
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
@@ -175,7 +176,7 @@ final class AgentStore {
             }
         case "Stop":
             // This session's main agent finished its turn.
-            finish(session + ":main")
+            if finish(session + ":main") { Chime.finished() }
             dropPending { $0.session == session }
         case "SessionStart":
             break
@@ -227,14 +228,17 @@ final class AgentStore {
         }
     }
 
-    private func finish(_ key: String) {
-        guard let i = index(key), agents[i].state == .running else { return }
+    /// True when the agent was running and is now done.
+    @discardableResult
+    private func finish(_ key: String) -> Bool {
+        guard let i = index(key), agents[i].state == .running else { return false }
         agents[i].state = .done
         agents[i].currentTool = nil
         agents[i].endedAt = Date()
         // Calls that never reported back (failed or interrupted) stop spinning when the turn ends.
         for s in agents[i].steps.indices where agents[i].steps[s].endedAt == nil { agents[i].steps[s].endedAt = Date() }
         scheduleCleanup()
+        return true
     }
 
     private func scheduleCleanup() {

@@ -35,6 +35,9 @@ final class MenuController: NSObject, NSMenuDelegate, SPUStandardUserDriverDeleg
         let login = make("Launch at login", #selector(toggleLogin))
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(login)
+        let sounds = make("Play sounds", #selector(toggleSounds))
+        sounds.state = Chime.isEnabled ? .on : .off
+        menu.addItem(sounds)
         if let updater {
             let check = NSMenuItem(title: "Check for Updates…",
                                    action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
@@ -74,6 +77,8 @@ final class MenuController: NSObject, NSMenuDelegate, SPUStandardUserDriverDeleg
             if s.status == .enabled { try s.unregister() } else { try s.register() }
         }
     }
+
+    @objc private func toggleSounds() { Chime.isEnabled.toggle() }
 
     @objc private func quit() { NSApp.terminate(nil) }
 
