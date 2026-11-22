@@ -41,7 +41,7 @@
 
 Notch Agents puts a Dynamic-Island-style pill at the top of your Mac. It shows every running [Claude Code](https://claude.com/claude-code) session and sub-agent: which one is working, on what, for how long, and which one is waiting for you. When Claude needs permission, the island asks, and you answer with one click.
 
-Free, open source, and it never talks to the network.
+Free, open source, and your code and prompts never leave your Mac.
 
 > Independent project. Not affiliated with or endorsed by Anthropic.
 
@@ -57,11 +57,14 @@ Free, open source, and it never talks to the network.
 
 - **One row per chat.** Each session carries its chat title and project folder. Sub-agents get rows of their own and turn green when they finish.
 - **Live tool and timer.** See the tool and file each agent is on right now, and how long it has run.
+- **Claude's task list.** Click an agent to see the task list Claude is working through, with what's done and what's next. Other agents with a list show a progress bar. Turn on **Show recent steps** in the menu to also see each agent's last few tool calls (off by default).
 - **Approve from the notch.** When Claude asks for permission, the island opens with the working directory, the full command (long ones scroll, never cut off) and Allow and Deny buttons. Don't answer within 25 seconds and Claude asks in the terminal as usual.
 - **Answer from the keyboard.** ⌥⌘Y allows and ⌥⌘N denies, from whatever app you're in. The keys are only taken while a card is waiting, and need no Accessibility permission.
 - **Jump to the session.** The ↗ on each row opens that chat in the Claude desktop app, or brings its terminal forward: the exact tab in Terminal and iTerm2, the app window in VS Code, Ghostty, Warp and others. The first jump into Terminal or iTerm2 asks you to let Notch Agents control it.
 - **Out of the way.** Collapsed, the island is the notch itself grown a little wider, like a live activity: a spinner on one side, the elapsed time (or the number of active agents) on the other. Hover to expand it. A few seconds after everything finishes, it tidies itself away.
-- **Private.** No network code, events held in memory, one local socket only your account can read.
+- **Sounds.** A short sound when an agent needs you and when a session finishes. Turn them off with **Play sounds** in the menu.
+- **Updates itself.** It checks for a new release once a day, or right away with **Check for Updates…** in the menu.
+- **Private.** Events stay in memory on one local socket only your account can read. The only network request is the daily update check to GitHub.
 
 It works on Macs without a notch too: the pill sits at the top centre of the screen.
 
@@ -120,7 +123,7 @@ No. Normal events are handed to a local socket and the script exits at once. The
 <details>
 <summary><strong>Does it send my code or prompts anywhere?</strong></summary>
 
-No. The app has no network code. Events live in memory and the app never writes them to disk. The socket is readable only by your user account.
+No. Events live in memory and the app never writes them to disk or sends them anywhere. Its only network request is the once-a-day update check, which fetches the release feed from GitHub. The socket is readable only by your user account.
 </details>
 
 <details>
