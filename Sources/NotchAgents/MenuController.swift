@@ -38,6 +38,9 @@ final class MenuController: NSObject, NSMenuDelegate, SPUStandardUserDriverDeleg
         let sounds = make("Play sounds", #selector(toggleSounds))
         sounds.state = Chime.isEnabled ? .on : .off
         menu.addItem(sounds)
+        let steps = make("Show recent steps", #selector(toggleSteps))
+        steps.state = UserDefaults.standard.bool(forKey: TraceView.showStepsKey) ? .on : .off
+        menu.addItem(steps)
         if let updater {
             let check = NSMenuItem(title: "Check for Updates…",
                                    action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
@@ -79,6 +82,11 @@ final class MenuController: NSObject, NSMenuDelegate, SPUStandardUserDriverDeleg
     }
 
     @objc private func toggleSounds() { Chime.isEnabled.toggle() }
+
+    @objc private func toggleSteps() {
+        let d = UserDefaults.standard
+        d.set(!d.bool(forKey: TraceView.showStepsKey), forKey: TraceView.showStepsKey)
+    }
 
     @objc private func quit() { NSApp.terminate(nil) }
 

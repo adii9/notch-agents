@@ -135,6 +135,9 @@ struct TraceView: View {
     let agent: AgentInfo
     /// Long task lists show this many, centred on the active item, so the notch stays on screen.
     static let maxTasks = 7
+    /// UserDefaults key for the menu's "Show recent steps"; off unless the user turns it on.
+    static let showStepsKey = "showRecentSteps"
+    @AppStorage(TraceView.showStepsKey) private var showSteps = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -153,7 +156,7 @@ struct TraceView: View {
                     }
                 }
             }
-            if !agent.steps.isEmpty {
+            if showSteps && !agent.steps.isEmpty {
                 Text("Recent steps").font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.45)).padding(.top, agent.tasks.isEmpty ? 0 : 4)
                 ForEach(agent.steps) { step in
