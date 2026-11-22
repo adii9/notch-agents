@@ -25,6 +25,12 @@ enum HookInstaller {
     SOCK="$HOME/.notch-agents/sock"
     [ -S "$SOCK" ] || exit 0
     P="$(cat)"
+    # Tell the app which process ran this hook, so it can find the session's terminal window,
+    # and, in the Claude desktop app, which chat it is, so the app can open that chat.
+    X='"notch_pid":'"$PPID"
+    H="$CLAUDE_CODE_HOST_SESSION_ID"
+    case "$H" in local_*[!A-Za-z0-9-]*) ;; local_?*) X="$X"',"notch_host_session":"'"$H"'"' ;; esac
+    case "$P" in '{"'*) P="{$X,${P#?}" ;; esac
     if printf '%s' "$P" | /usr/bin/grep -q '"hook_event_name" *: *"PermissionRequest"'; then
       printf '%s\\n' "$P" | /usr/bin/nc -U -w 30 "$SOCK" 2>/dev/null
     else
@@ -48,6 +54,14 @@ enum HookInstaller {
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: hookPath)
         try modify(add: true)
         try? FileManager.default.removeItem(atPath: legacyDir)
+    }
+
+    /// After an app update, rewrites an out-of-date hook script so new features reach existing installs.
+    /// settings.json is left alone.
+    static func refreshScriptIfInstalled() {
+        guard isInstalled, (try? String(contentsOfFile: hookPath, encoding: .utf8)) != script else { return }
+        try? script.write(toFile: hookPath, atomically: true, encoding: .utf8)
+        try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: hookPath)
     }
 
     static func uninstall() throws {

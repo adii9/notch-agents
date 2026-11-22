@@ -74,9 +74,11 @@ struct IslandView: View {
             Color.clear.frame(height: IslandLayout.notchHeight)
             // Approvals first: they block Claude. Questions are only a heads-up.
             if let prompt = store.pending.first(where: { !$0.isQuestion }) ?? store.pending.first {
+                let terminal = store.terminal(forAgent: prompt.agentKey)
                 ApprovalCard(prompt: prompt, more: store.pending.count - 1,
                              decide: { allow in store.decide(prompt.id, allow: allow) },
-                             dismiss: { store.dismiss(prompt.id) })
+                             dismiss: { store.dismiss(prompt.id) },
+                             openTerminal: terminal.map { t in { TerminalLocator.focus(t) } })
             }
             ForEach(store.agents) { agent in
                 let tint = agent.state == .running ? Color.orange : Color.green
@@ -94,6 +96,16 @@ struct IslandView: View {
                             .font(.system(size: 11)).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
                     }
                     Spacer()
+                    if let terminal = store.terminal(forAgent: agent.id) {
+                        Button { TerminalLocator.focus(terminal) } label: {
+                            Image(systemName: "arrow.up.forward.app")
+                                .font(.system(size: 12)).foregroundStyle(.white.opacity(0.6))
+                                .frame(width: 22, height: 22).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help(terminal.desktopChat != nil ? "Open this chat in Claude"
+                              : terminal.tty == nil ? "Open the app this session runs in" : "Jump to this session's terminal")
+                    }
                     TimelineView(.periodic(from: .now, by: 1)) { ctx in
                         let end = agent.endedAt ?? ctx.date
                         Text(format(end.timeIntervalSince(agent.startedAt)))
@@ -185,6 +197,8 @@ struct ApprovalCard: View {
     let more: Int
     let decide: (Bool) -> Void
     let dismiss: () -> Void
+    /// Brings the session's terminal forward; nil when it couldn't be found.
+    let openTerminal: (() -> Void)?
     /// Buttons stay inert briefly so a click already in flight can't approve a card that just popped up.
     static let armDelay: TimeInterval = 0.7
 
@@ -229,16 +243,22 @@ struct ApprovalCard: View {
             }
             if prompt.isQuestion {
                 HStack {
-                    Text("Answer it in the terminal").font(.system(size: 10)).foregroundStyle(.white.opacity(0.45))
-                    Spacer()
+                    if let openTerminal {
+                        Button("Answer in terminal", action: openTerminal).buttonStyle(IslandButtonStyle(primary: true))
+                    } else {
+                        Text("Answer it in the terminal").font(.system(size: 10)).foregroundStyle(.white.opacity(0.45))
+                        Spacer()
+                    }
                     Button("Dismiss", action: dismiss).buttonStyle(IslandButtonStyle(primary: false)).frame(width: 90)
                 }
             } else {
                 TimelineView(.periodic(from: .now, by: 0.25)) { ctx in
                     let armed = ctx.date.timeIntervalSince(prompt.createdAt) >= Self.armDelay
                     HStack(spacing: 8) {
-                        Button("Deny") { decide(false) }.buttonStyle(IslandButtonStyle(primary: false))
-                        Button("Allow") { decide(true) }.buttonStyle(IslandButtonStyle(primary: true))
+                        Button { decide(false) } label: { ButtonLabel(title: "Deny", key: ApprovalHotKeys.denyLabel) }
+                            .buttonStyle(IslandButtonStyle(primary: false))
+                        Button { decide(true) } label: { ButtonLabel(title: "Allow", key: ApprovalHotKeys.allowLabel) }
+                            .buttonStyle(IslandButtonStyle(primary: true))
                     }
                     .disabled(!armed).opacity(armed ? 1 : 0.5)
                 }
@@ -265,6 +285,18 @@ struct CappedHeight: Layout {
     }
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         subviews.first?.place(at: bounds.origin, proposal: capped(proposal))
+    }
+}
+
+/// A button title with its keyboard shortcut beside it.
+struct ButtonLabel: View {
+    let title: String
+    let key: String
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(title)
+            Text(key).font(.system(size: 10, weight: .medium)).opacity(0.55)
+        }
     }
 }
 

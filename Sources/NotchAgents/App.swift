@@ -35,10 +35,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             MainActor.assumeIsolated { self?.positionPanel() }
         }
 
-        server = EventServer { [weak self] ev, responder in
+        server = EventServer { [weak self] ev, responder, terminal in
             Task { @MainActor in
                 guard let self else { responder?.finish(nil); return }
-                self.store.handle(ev, responder: responder)
+                self.store.handle(ev, responder: responder, terminal: terminal)
             }
         }
         do { try server.start() } catch {
@@ -47,6 +47,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         menu = MenuController()
+        HookInstaller.refreshScriptIfInstalled()
+        hotKeys = ApprovalHotKeys { [weak self] allow in self?.store.decideCurrent(allow: allow) }
 
         // The panel is much bigger than the island and floats above other windows, so it must
         // only take clicks where the island actually is; everywhere else they go to what's below.
@@ -58,6 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     var mouseTimer: Timer?
+    var hotKeys: ApprovalHotKeys?
 
     private func updateClickThrough() {
         let size = hover.islandSize
@@ -68,6 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if panel.ignoresMouseEvents == inside { panel.ignoresMouseEvents = !inside }
         // While click-through, SwiftUI gets no hover-exit event, so collapse here.
         if !inside && hover.hovering { hover.hovering = false }
+        hotKeys?.setEnabled(store.currentApproval != nil)
     }
 
     var menu: MenuController?

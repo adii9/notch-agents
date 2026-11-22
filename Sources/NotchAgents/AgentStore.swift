@@ -12,6 +12,10 @@ struct HookEvent: Decodable {
     let message: String?
     let cwd: String?
     let session_title: String?
+    /// Added by our hook script: the process that ran the hook (Claude Code, or a shell under it).
+    let notch_pid: Int32?
+    /// Added by our hook script in the Claude desktop app: the chat's id ("local_…").
+    let notch_host_session: String?
 }
 
 /// Minimal JSON value so tool_input of any shape decodes.
@@ -109,6 +113,8 @@ final class AgentStore {
     var lastMessage: String?
     /// Agent whose live trace the island shows; nil (or gone) means the first running one.
     var tracedAgent: String?
+    /// Where each session runs, keyed by session id, for "jump to terminal".
+    private(set) var terminals: [String: TerminalTarget] = [:]
 
     /// After this, the prompt is dropped and Claude falls back to its own terminal prompt.
     /// Must stay below the hook's `nc -w` (30s) and the hook timeout in settings (40s).
@@ -118,12 +124,15 @@ final class AgentStore {
     static let maxSteps = 5
 
     var running: [AgentInfo] { agents.filter { $0.state == .running } }
+    /// The Allow/Deny card the island shows (approvals before question heads-ups).
+    var currentApproval: PermissionPrompt? { pending.first { !$0.isQuestion } }
     var isVisible: Bool { !agents.isEmpty || !pending.isEmpty }
 
-    func handle(_ e: HookEvent, responder: Responder? = nil) {
+    func handle(_ e: HookEvent, responder: Responder? = nil, terminal: TerminalTarget? = nil) {
         let name = e.hook_event_name ?? ""
         // Key per session so several chats don't collapse into one row.
         let session = e.session_id ?? "?"
+        if let terminal { terminals[session] = terminal }
         let key = session + ":" + (e.agent_id ?? "main")
         let project = e.cwd.map { ($0 as NSString).lastPathComponent } ?? "session"
         let mainTitle = e.session_title ?? project
@@ -195,6 +204,19 @@ final class AgentStore {
         if let a = index(p.agentKey) { agents[a].currentTool = allow ? "Approved \(p.tool)" : "Denied \(p.tool)" }
     }
 
+    /// Answers the card on screen from a keyboard shortcut. Ignored while the card is still arming,
+    /// so a shortcut pressed for something else can't approve a card that just appeared.
+    func decideCurrent(allow: Bool) {
+        guard let p = currentApproval, Date().timeIntervalSince(p.createdAt) >= ApprovalCard.armDelay else { return }
+        decide(p.id, allow: allow)
+    }
+
+    /// The session's terminal (or app) for an agent row or prompt.
+    func terminal(forAgent key: String) -> TerminalTarget? {
+        guard let colon = key.lastIndex(of: ":") else { return nil }
+        return terminals[String(key[..<colon])]
+    }
+
     /// Hook output understood by Claude Code's PermissionRequest event.
     nonisolated static func decisionJSON(allow: Bool) -> String {
         var decision: [String: Any] = ["behavior": allow ? "allow" : "deny"]
@@ -246,6 +268,7 @@ final class AgentStore {
             try? await Task.sleep(nanoseconds: 8_000_000_000)
             let cutoff = Date().addingTimeInterval(-7.5)
             agents.removeAll { $0.state == .done && ($0.endedAt ?? .distantPast) < cutoff }
+            terminals = terminals.filter { session, _ in agents.contains { $0.id.hasPrefix(session + ":") } }
         }
     }
 

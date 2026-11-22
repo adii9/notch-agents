@@ -58,6 +58,8 @@ Free, open source, and it never talks to the network.
 - **One row per chat.** Each session carries its chat title and project folder. Sub-agents get rows of their own and turn green when they finish.
 - **Live tool and timer.** See the tool and file each agent is on right now, and how long it has run.
 - **Approve from the notch.** When Claude asks for permission, the island opens with the working directory, the full command (long ones scroll, never cut off) and Allow and Deny buttons. Don't answer within 25 seconds and Claude asks in the terminal as usual.
+- **Answer from the keyboard.** ⌥⌘Y allows and ⌥⌘N denies, from whatever app you're in. The keys are only taken while a card is waiting, and need no Accessibility permission.
+- **Jump to the session.** The ↗ on each row opens that chat in the Claude desktop app, or brings its terminal forward: the exact tab in Terminal and iTerm2, the app window in VS Code, Ghostty, Warp and others. The first jump into Terminal or iTerm2 asks you to let Notch Agents control it.
 - **Out of the way.** Collapsed, the island is the notch itself grown a little wider, like a live activity: a spinner on one side, the elapsed time (or the number of active agents) on the other. Hover to expand it. A few seconds after everything finishes, it tidies itself away.
 - **Private.** No network code, events held in memory, one local socket only your account can read.
 
@@ -88,6 +90,7 @@ Claude Code fires a hook when a session starts, uses a tool, starts or stops a s
 
 `SessionStart` · `PreToolUse` · `PostToolUse` · `SubagentStart` · `SubagentStop` · `Stop` · `Notification` · `PermissionRequest`
 
+- The script adds two fields so the app can find the session: `notch_pid` (the process that ran the hook) and, in the Claude desktop app, `notch_host_session` (the chat's id).
 - For every event except permission requests, the script writes the event JSON to the socket and exits 0 straight away, even if the app isn't running. It can't hold Claude up.
 - For a `PermissionRequest`, the script waits for your Allow or Deny and prints the answer back to Claude. No answer within 25 seconds, or no app running, prints nothing, and Claude shows its own prompt.
 - Questions Claude asks you (`AskUserQuestion`) appear on the island as a heads-up. You answer them in the terminal, because Allow and Deny can't pick an option.
@@ -162,7 +165,7 @@ Keep a backup of that key (e.g. in a password manager). If it's lost, installed 
 
 ## Contributing
 
-Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Ideas wanted: click-to-focus the terminal, sounds, a settings window, a layout for Macs without a notch.
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Ideas wanted: a settings window, support for other coding agents.
 
 <details>
 <summary><strong>The website (for maintainers)</strong></summary>

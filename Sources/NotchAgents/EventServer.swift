@@ -6,9 +6,9 @@ final class EventServer: @unchecked Sendable {
     static let path = dir + "/sock"
 
     private var fd: Int32 = -1
-    private let onEvent: @Sendable (HookEvent, Responder?) -> Void
+    private let onEvent: @Sendable (HookEvent, Responder?, TerminalTarget?) -> Void
 
-    init(onEvent: @escaping @Sendable (HookEvent, Responder?) -> Void) { self.onEvent = onEvent }
+    init(onEvent: @escaping @Sendable (HookEvent, Responder?, TerminalTarget?) -> Void) { self.onEvent = onEvent }
 
     /// True if a live process already accepts connections on the socket.
     static func isAnotherInstanceListening() -> Bool {
@@ -75,11 +75,13 @@ final class EventServer: @unchecked Sendable {
                     guard let ev = try? JSONDecoder().decode(HookEvent.self, from: Data(line)) else {
                         close(client); return
                     }
+                    // Found before closing: the hook (and its parent shell) may exit right after.
+                    let terminal = TerminalLocator.locate(pid: ev.notch_pid, desktopChat: ev.notch_host_session)
                     if ev.hook_event_name == "PermissionRequest" {
-                        onEvent(ev, Responder(fd: client))
+                        onEvent(ev, Responder(fd: client), terminal)
                     } else {
                         close(client)
-                        onEvent(ev, nil)
+                        onEvent(ev, nil, terminal)
                     }
                 }
             }
