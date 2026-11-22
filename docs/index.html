@@ -151,7 +151,7 @@
     <div class="sc-wrap how__grid">
       <div class="how__copy sc-stack" data-sc-in data-sc-stagger="70">
         <h2 class="sc-display sc-display--md">Eight hooks in.<br>One pill out.</h2>
-        <p class="sc-body">Claude Code fires a hook when a session uses a tool, starts a sub-agent, asks for permission or finishes. A nine-line script hands each event to a private socket on your Mac and exits. The app turns those events into what you see at the notch.</p>
+        <p class="sc-body">Claude Code fires a hook when a session uses a tool, starts a sub-agent, asks for permission or finishes. A short script hands each event to a private socket on your Mac and exits. The app turns those events into what you see at the notch.</p>
         <ol class="pipe" aria-label="How an event reaches the notch">
           <li><span>Claude Code hook</span></li>
           <li><span>~/.notch-agents/hook.sh</span></li>
@@ -185,7 +185,7 @@
     <div class="sc-wrap">
       <h2 class="sc-display sc-display--md" data-sc-in>It never leaves your Mac.</h2>
       <dl class="spec" data-sc-in data-sc-stagger="50">
-        <div><dt>Network</dt><dd>None. The app has no network code at all.</dd></div>
+        <div><dt>Network</dt><dd>One request: a once-a-day check of GitHub for a new release. Your code and prompts are never sent anywhere.</dd></div>
         <div><dt>Your code and prompts</dt><dd>Held in memory while an agent runs. The app never writes them to disk.</dd></div>
         <div><dt>The socket</dt><dd><code>~/.notch-agents/sock</code>, mode 0600. Only your user account can talk to it.</dd></div>
         <div><dt>What install changes</dt><dd>Eight entries in <code>~/.claude/settings.json</code>, after a timestamped backup. One menu item removes them again.</dd></div>
@@ -200,6 +200,12 @@
 SOCK=<span class="s">"$HOME/.notch-agents/sock"</span>
 [ -S <span class="s">"$SOCK"</span> ] || <span class="k">exit</span> 0
 P=<span class="s">"$(cat)"</span>
+<span class="c"># Tell the app which process ran this hook, so it can find the session's terminal window,</span>
+<span class="c"># and, in the Claude desktop app, which chat it is, so the app can open that chat.</span>
+X=<span class="s">'"notch_pid":'</span><span class="s">"$PPID"</span>
+H=<span class="s">"$CLAUDE_CODE_HOST_SESSION_ID"</span>
+<span class="k">case</span> <span class="s">"$H"</span> <span class="k">in</span> local_*[!A-Za-z0-9-]*) ;; local_?*) X=<span class="s">"$X"</span><span class="s">',"notch_host_session":"'</span><span class="s">"$H"</span><span class="s">'"'</span> ;; <span class="k">esac</span>
+<span class="k">case</span> <span class="s">"$P"</span> <span class="k">in</span> <span class="s">'{"'</span>*) P=<span class="s">"{$X,${P#?}"</span> ;; <span class="k">esac</span>
 <span class="k">if</span> printf <span class="s">'%s'</span> <span class="s">"$P"</span> | /usr/bin/grep -q <span class="s">'"hook_event_name" *: *"PermissionRequest"'</span>; <span class="k">then</span>
   printf <span class="s">'%s\n'</span> <span class="s">"$P"</span> | /usr/bin/nc -U -w 30 <span class="s">"$SOCK"</span> 2&gt;/dev/null
 <span class="k">else</span>
