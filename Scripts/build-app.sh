@@ -47,6 +47,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>SUFeedURL</key><string>$FEED_URL</string>
   <key>SUPublicEDKey</key><string>$SPARKLE_PUBLIC_KEY</string>
   <key>SUEnableAutomaticChecks</key><true/>
+  <key>NSAppleEventsUsageDescription</key><string>Notch Agents selects the tab a Claude Code session runs in when you click jump to terminal.</string>
 </dict></plist>
 PLIST
 [ -f Resources/AppIcon.icns ] && cp Resources/AppIcon.icns "$APP/Contents/Resources/" \
@@ -61,7 +62,9 @@ SPK="$APP/Contents/Frameworks/Sparkle.framework"
 "${SIGN[@]}" "$SPK/Versions/B/Autoupdate"
 "${SIGN[@]}" "$SPK/Versions/B/Updater.app"
 "${SIGN[@]}" "$SPK"
-"${SIGN[@]}" "$APP"
+APP_SIGN=("${SIGN[@]}")
+[ "$IDENTITY" != "-" ] && APP_SIGN+=(--entitlements Resources/NotchAgents.entitlements)
+"${APP_SIGN[@]}" "$APP"
 codesign --verify --strict "$APP"
 
 STAGE="dist/stage"; mkdir -p "$STAGE"

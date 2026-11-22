@@ -12,29 +12,61 @@ struct IslandView: View {
         VStack(spacing: 0) {
             if expanded { expandedBody } else { collapsedBody }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, expanded ? 12 : 0)
+        // Content stays clear of the outward-curving "ears" at the top corners.
+        .padding(.horizontal, (expanded ? 14 : 10) + shape.topRadius)
+        .padding(.bottom, expanded ? 14 : 0)
         .frame(width: expanded ? IslandLayout.expandedWidth : IslandLayout.collapsedWidth,
                height: expanded ? nil : IslandLayout.collapsedHeight)
         .background(Color.black)
-        .clipShape(RoundedRectangle(cornerRadius: expanded ? 24 : 18, style: .continuous))
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: expanded)
+        .clipShape(shape)
+        .shadow(color: .black.opacity(expanded ? 0.5 : 0), radius: 12, y: 4)
+        .animation(.spring(response: 0.38, dampingFraction: 0.78), value: expanded)
     }
 
+    /// Flush with the top of the screen like the hardware notch, so the island reads as the notch growing.
+    private var shape: NotchShape {
+        expanded ? NotchShape(topRadius: 14, bottomRadius: 24) : NotchShape(topRadius: 6, bottomRadius: 12)
+    }
+
+    /// Compact live activity: status on the left of the camera housing, timer or count on the right.
     private var collapsedBody: some View {
-        // Spinner and count sit either side of the physical notch.
         HStack(spacing: 0) {
-            if store.running.isEmpty {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-            } else {
-                ProgressView().controlSize(.small).tint(.orange)
+            Group {
+                if let prompt = store.pending.first {
+                    Image(systemName: prompt.isQuestion ? "questionmark.bubble.fill" : "hand.raised.fill")
+                        .foregroundStyle(prompt.isQuestion ? Color.blue : Color.orange)
+                        .symbolEffect(.pulse)
+                } else if store.running.isEmpty {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                } else {
+                    ActivityRing()
+                }
             }
+            .font(.system(size: 13, weight: .semibold))
+            .frame(width: 18, height: 18)
             Spacer(minLength: IslandLayout.notchWidth)
-            Text(store.running.isEmpty ? "Done" : "\(store.running.count) active")
+            trailingCompact
                 .font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
                 .lineLimit(1).fixedSize()
         }
         .frame(maxHeight: .infinity)
+    }
+
+    @ViewBuilder private var trailingCompact: some View {
+        if store.running.count == 1, let agent = store.running.first {
+            TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                Text(format(ctx.date.timeIntervalSince(agent.startedAt)))
+                    .font(.system(size: 12, weight: .semibold, design: .rounded)).monospacedDigit()
+                    .foregroundStyle(.orange)
+            }
+        } else if store.running.count > 1 {
+            HStack(spacing: 4) {
+                Image(systemName: "sparkles").foregroundStyle(.orange)
+                Text("\(store.running.count)").monospacedDigit()
+            }
+        } else {
+            Text("Done").foregroundStyle(.green)
+        }
     }
 
     private var expandedBody: some View {
@@ -42,19 +74,38 @@ struct IslandView: View {
             Color.clear.frame(height: IslandLayout.notchHeight)
             // Approvals first: they block Claude. Questions are only a heads-up.
             if let prompt = store.pending.first(where: { !$0.isQuestion }) ?? store.pending.first {
+                let terminal = store.terminal(forAgent: prompt.agentKey)
                 ApprovalCard(prompt: prompt, more: store.pending.count - 1,
                              decide: { allow in store.decide(prompt.id, allow: allow) },
-                             dismiss: { store.dismiss(prompt.id) })
+                             dismiss: { store.dismiss(prompt.id) },
+                             openTerminal: terminal.map { t in { TerminalLocator.focus(t) } })
             }
             ForEach(store.agents) { agent in
+                let tint = agent.state == .running ? Color.orange : Color.green
                 HStack(spacing: 10) {
-                    Circle().fill(agent.state == .running ? Color.orange : Color.green).frame(width: 8, height: 8)
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 9, style: .continuous).fill(tint.opacity(0.18))
+                        Image(systemName: agent.state == .running ? "sparkle" : "checkmark")
+                            .font(.system(size: 14, weight: .bold)).foregroundStyle(tint)
+                            .symbolEffect(.pulse, isActive: agent.state == .running)
+                    }
+                    .frame(width: 32, height: 32)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(agent.type).font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
                         Text("\(agent.project) · " + (agent.currentTool ?? (agent.state == .running ? "thinking…" : "finished")))
                             .font(.system(size: 11)).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
                     }
                     Spacer()
+                    if let terminal = store.terminal(forAgent: agent.id) {
+                        Button { TerminalLocator.focus(terminal) } label: {
+                            Image(systemName: "arrow.up.forward.app")
+                                .font(.system(size: 12)).foregroundStyle(.white.opacity(0.6))
+                                .frame(width: 22, height: 22).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help(terminal.desktopChat != nil ? "Open this chat in Claude"
+                              : terminal.tty == nil ? "Open the app this session runs in" : "Jump to this session's terminal")
+                    }
                     TimelineView(.periodic(from: .now, by: 1)) { ctx in
                         let end = agent.endedAt ?? ctx.date
                         Text(format(end.timeIntervalSince(agent.startedAt)))
@@ -63,6 +114,11 @@ struct IslandView: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture { store.tracedAgent = agent.id }
+                if !agent.tasks.isEmpty && agent.id != traced {
+                    TaskProgressBar(done: agent.tasks.filter { $0.status == "completed" }.count,
+                                    total: agent.tasks.count, tint: tint)
+                        .padding(.leading, 42)
+                }
                 if agent.id == traced { TraceView(agent: agent) }
             }
         }
@@ -115,7 +171,7 @@ struct TraceView: View {
                 }
             }
         }
-        .padding(.leading, 18)
+        .padding(.leading, 42)
     }
 
     private var visibleTasks: ArraySlice<TaskItem> {
@@ -141,6 +197,8 @@ struct ApprovalCard: View {
     let more: Int
     let decide: (Bool) -> Void
     let dismiss: () -> Void
+    /// Brings the session's terminal forward; nil when it couldn't be found.
+    let openTerminal: (() -> Void)?
     /// Buttons stay inert briefly so a click already in flight can't approve a card that just popped up.
     static let armDelay: TimeInterval = 0.7
 
@@ -174,21 +232,33 @@ struct ApprovalCard: View {
             if prompt.isQuestion {
                 detailText
             } else {
-                // Full command stays readable: long ones scroll instead of being cut off.
-                ScrollView(.vertical) { detailText }.frame(maxHeight: 120)
+                // Full command stays readable: short ones take only their own height, long ones scroll
+                // instead of being cut off.
+                CappedHeight(max: 120) {
+                    ViewThatFits(in: .vertical) {
+                        detailText
+                        ScrollView(.vertical) { detailText }
+                    }
+                }
             }
             if prompt.isQuestion {
                 HStack {
-                    Text("Answer it in the terminal").font(.system(size: 10)).foregroundStyle(.white.opacity(0.45))
-                    Spacer()
+                    if let openTerminal {
+                        Button("Answer in terminal", action: openTerminal).buttonStyle(IslandButtonStyle(primary: true))
+                    } else {
+                        Text("Answer it in the terminal").font(.system(size: 10)).foregroundStyle(.white.opacity(0.45))
+                        Spacer()
+                    }
                     Button("Dismiss", action: dismiss).buttonStyle(IslandButtonStyle(primary: false)).frame(width: 90)
                 }
             } else {
                 TimelineView(.periodic(from: .now, by: 0.25)) { ctx in
                     let armed = ctx.date.timeIntervalSince(prompt.createdAt) >= Self.armDelay
                     HStack(spacing: 8) {
-                        Button("Deny") { decide(false) }.buttonStyle(IslandButtonStyle(primary: false))
-                        Button("Allow") { decide(true) }.buttonStyle(IslandButtonStyle(primary: true))
+                        Button { decide(false) } label: { ButtonLabel(title: "Deny", key: ApprovalHotKeys.denyLabel) }
+                            .buttonStyle(IslandButtonStyle(primary: false))
+                        Button { decide(true) } label: { ButtonLabel(title: "Allow", key: ApprovalHotKeys.allowLabel) }
+                            .buttonStyle(IslandButtonStyle(primary: true))
                     }
                     .disabled(!armed).opacity(armed ? 1 : 0.5)
                 }
@@ -200,6 +270,33 @@ struct ApprovalCard: View {
         .padding(12)
         .background(Color.white.opacity(0.06))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+/// Offers its child at most `max` points of height but takes only what the child uses.
+/// (`.frame(maxHeight:)` would always grow to `max` whenever more room is offered.)
+struct CappedHeight: Layout {
+    let max: CGFloat
+    private func capped(_ p: ProposedViewSize) -> ProposedViewSize {
+        ProposedViewSize(width: p.width, height: min(p.height ?? max, max))
+    }
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        subviews.first?.sizeThatFits(capped(proposal)) ?? .zero
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: bounds.origin, proposal: capped(proposal))
+    }
+}
+
+/// A button title with its keyboard shortcut beside it.
+struct ButtonLabel: View {
+    let title: String
+    let key: String
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(title)
+            Text(key).font(.system(size: 10, weight: .medium)).opacity(0.55)
+        }
     }
 }
 
@@ -217,14 +314,77 @@ struct IslandButtonStyle: ButtonStyle {
     }
 }
 
+/// The hardware notch's silhouette: square top flush with the screen edge, concave curves flaring
+/// into the menu bar at the top corners, rounded bottom corners. Both radii animate.
+struct NotchShape: Shape {
+    var topRadius: CGFloat
+    var bottomRadius: CGFloat
+
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(topRadius, bottomRadius) }
+        set { topRadius = newValue.first; bottomRadius = newValue.second }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let t = topRadius, b = bottomRadius
+        var p = Path()
+        p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        p.addQuadCurve(to: CGPoint(x: rect.minX + t, y: rect.minY + t), control: CGPoint(x: rect.minX + t, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.minX + t, y: rect.maxY - b))
+        p.addQuadCurve(to: CGPoint(x: rect.minX + t + b, y: rect.maxY), control: CGPoint(x: rect.minX + t, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.maxX - t - b, y: rect.maxY))
+        p.addQuadCurve(to: CGPoint(x: rect.maxX - t, y: rect.maxY - b), control: CGPoint(x: rect.maxX - t, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.maxX - t, y: rect.minY + t))
+        p.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY), control: CGPoint(x: rect.maxX - t, y: rect.minY))
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// Spinning arc for "working", in place of the stock spinner.
+struct ActivityRing: View {
+    var body: some View {
+        TimelineView(.animation) { ctx in
+            Circle()
+                .trim(from: 0.15, to: 1)
+                .stroke(AngularGradient(colors: [.orange.opacity(0), .orange], center: .center),
+                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                .frame(width: 14, height: 14)
+                .rotationEffect(.degrees(ctx.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1) * 360))
+        }
+    }
+}
+
+/// Slim progress bar for an agent's task list.
+struct TaskProgressBar: View {
+    let done: Int
+    let total: Int
+    let tint: Color
+    var body: some View {
+        HStack(spacing: 8) {
+            GeometryReader { g in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.12))
+                    Capsule().fill(tint).frame(width: g.size.width * CGFloat(done) / CGFloat(max(total, 1)))
+                }
+            }
+            .frame(height: 4)
+            Text("\(done)/\(total)").font(.system(size: 10, weight: .medium)).monospacedDigit()
+                .foregroundStyle(.white.opacity(0.5))
+        }
+    }
+}
+
 enum IslandLayout {
     /// Set at launch from the screen's safe-area; 0 on displays without a notch.
     nonisolated(unsafe) static var notchWidth: CGFloat = 0
     nonisolated(unsafe) static var notchHeight: CGFloat = 0
-    static var collapsedWidth: CGFloat { notchWidth > 0 ? notchWidth + 150 : 170 }
-    static var collapsedHeight: CGFloat { max(notchHeight, 34) }
-    static let expandedWidth: CGFloat = 340
-    static let panelWidth: CGFloat = 360
+    /// Room on each side of the camera housing for the compact live-activity content, plus the top ears.
+    static var collapsedWidth: CGFloat { (notchWidth > 0 ? notchWidth : 120) + 2 * 60 + 12 }
+    /// Exactly the hardware notch's height so the two blend into one shape.
+    static var collapsedHeight: CGFloat { notchHeight > 0 ? notchHeight : 32 }
+    static let expandedWidth: CGFloat = 360
+    static let panelWidth: CGFloat = 400
     /// Tall enough for an approval card plus a full trace; clicks outside the island pass through.
     static let panelHeight: CGFloat = 720
 }
