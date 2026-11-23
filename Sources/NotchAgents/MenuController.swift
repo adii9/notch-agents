@@ -38,6 +38,9 @@ final class MenuController: NSObject, NSMenuDelegate, SPUStandardUserDriverDeleg
         let sounds = make("Play sounds", #selector(toggleSounds))
         sounds.state = Chime.isEnabled ? .on : .off
         menu.addItem(sounds)
+        let haptics = make("Haptic feedback", #selector(toggleHaptics))
+        haptics.state = Haptics.isEnabled ? .on : .off
+        menu.addItem(haptics)
         let steps = make("Show recent steps", #selector(toggleSteps))
         steps.state = UserDefaults.standard.bool(forKey: TraceView.showStepsKey) ? .on : .off
         menu.addItem(steps)
@@ -82,6 +85,8 @@ final class MenuController: NSObject, NSMenuDelegate, SPUStandardUserDriverDeleg
     }
 
     @objc private func toggleSounds() { Chime.isEnabled.toggle() }
+
+    @objc private func toggleHaptics() { Haptics.isEnabled.toggle() }
 
     @objc private func toggleSteps() {
         let d = UserDefaults.standard

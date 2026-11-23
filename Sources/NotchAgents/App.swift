@@ -106,7 +106,7 @@ struct RootView: View {
         VStack {
             if store.isVisible {
                 // A pending permission request keeps the island open until it's answered.
-                IslandView(store: store, expanded: hover.hovering || !store.pending.isEmpty)
+                IslandView(store: store, expanded: expanded)
                     .onHover { hover.hovering = $0 }
                     .background(GeometryReader { g in
                         Color.clear
@@ -120,7 +120,10 @@ struct RootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(.easeInOut(duration: 0.25), value: store.isVisible)
+        .onChange(of: expanded) { _, open in if open { Haptics.islandOpened() } }
     }
+
+    private var expanded: Bool { hover.hovering || !store.pending.isEmpty }
 }
 
 /// The panel never becomes key, so the first click must go straight to the buttons.

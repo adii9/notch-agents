@@ -63,6 +63,7 @@ Free, open source, and your code and prompts never leave your Mac.
 - **Jump to the session.** The ↗ on each row opens that chat in the Claude desktop app, or brings its terminal forward: the exact tab in Terminal and iTerm2, the app window in VS Code, Ghostty, Warp and others. The first jump into Terminal or iTerm2 asks you to let Notch Agents control it.
 - **Out of the way.** Collapsed, the island is the notch itself grown a little wider, like a live activity: a spinner on one side, the elapsed time (or the number of active agents) on the other. Hover to expand it. A few seconds after everything finishes, it tidies itself away.
 - **Sounds.** A short sound when an agent needs you and when a session finishes. Turn them off with **Play sounds** in the menu.
+- **Haptic tap.** The trackpad gives a light tap when the island opens. It needs a Force Touch trackpad (a mouse feels nothing). Turn it off with **Haptic feedback** in the menu.
 - **Updates itself.** It checks for a new release once a day, or right away with **Check for Updates…** in the menu.
 - **Private.** Events stay in memory on one local socket only your account can read. The only network request is the daily update check to GitHub.
 
